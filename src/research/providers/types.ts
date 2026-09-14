@@ -14,6 +14,13 @@ export interface ExtractedPage {
   title: string;
   publisher?: string;
   date?: string;
+  /** Honest cache provenance when page body came from cache (P4). */
+  fetch_source?: "cached" | "live";
+}
+
+export interface ProviderCallOpts {
+  /** Cancel in-flight search/extract when aborted (P3a). */
+  signal?: AbortSignal;
 }
 
 export interface SynthesizeInput {
@@ -39,9 +46,9 @@ export interface ResearchProvider {
   /** Stable id for logs/tests (`mock`, `local-http`, …). */
   readonly id: string;
   /** Return candidate page URLs for the query (no page bodies). */
-  search(query: string): Promise<string[]>;
-  /** Fetch and extract a single page. Throw on failure. */
-  fetchExtract(url: string): Promise<ExtractedPage>;
+  search(query: string, opts?: ProviderCallOpts): Promise<string[]>;
+  /** Fetch and extract a single page. Throw on failure / abort. */
+  fetchExtract(url: string, opts?: ProviderCallOpts): Promise<ExtractedPage>;
   /** Optional provider-side synthesizer. Default: local quoted synthesizer. */
   synthesize?(input: SynthesizeInput): Promise<SynthesizeOutput>;
 }

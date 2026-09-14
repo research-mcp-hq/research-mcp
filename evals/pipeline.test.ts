@@ -10,6 +10,10 @@ import {
   runResearchBrief,
 } from "../src/research/index.js";
 import { runLiveBriefPipeline } from "../src/research/pipeline.js";
+import {
+  PIPELINE_PHASES,
+  type PipelinePhase,
+} from "../src/research/progress.js";
 import { briefBarPassing, briefDensityOk } from "../src/research/bar.js";
 import { DEFAULT_COGS, loadCogsConfig, type CogsConfig } from "../src/research/cogs.js";
 import { defaultMockPages, MockProvider } from "../src/research/providers/mock.js";
@@ -695,6 +699,112 @@ await test("quote helpers: source_url bind + normalize", () => {
   );
   assert.equal(miss.ok, false);
   assert.equal(miss.confidenceFloor, "unknown");
+});
+
+
+await test("P3a: phase-only progress searching→extracting→verifying (no pre-verify counts)", async () => {
+  const phases: PipelinePhase[] = [];
+  const provider = new MockProvider({ pages: defaultMockPages(OFF_GOLDEN) });
+  const r = await runLiveBriefPipeline(
+    { query: OFF_GOLDEN, depth: "standard" },
+    {
+      provider,
+      onProgress: (phase) => {
+        phases.push(phase);
+      },
+    },
+  );
+  assert.ok(r);
+  assert.equal(r!.meta?.mode, "live");
+  assert.deepEqual(phases, [...PIPELINE_PHASES]);
+  // Honesty: never report "found N primaries" style messages — only phase names.
+  for (const p of phases) {
+    assert.ok(["searching", "extracting", "verifying"].includes(p));
+  }
+});
+
+await test("P3a: abort mid-extract → non-billable cancel, no further extracts", async () => {
+  const ctrl = new AbortController();
+  let extractAttempts = 0;
+  const provider = new MockProvider({
+    pages: defaultMockPages(OFF_GOLDEN),
+    extractImpl: async (url, opts) => {
+      extractAttempts += 1;
+      if (extractAttempts === 1) {
+        // Abort after first extract starts — mid-pipeline cancel.
+        ctrl.abort();
+      }
+      if (opts?.signal?.aborted || ctrl.signal.aborted) {
+        const err = new Error("aborted mid-extract");
+        err.name = "AbortError";
+        throw err;
+      }
+      const page = defaultMockPages(OFF_GOLDEN).find((p) => p.url === url);
+      if (!page) throw new Error("miss");
+      return { ...page, fetch_source: "live" as const };
+    },
+  });
+
+  const r = await runLiveBriefPipeline(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider, signal: ctrl.signal },
+  );
+  assert.ok(r);
+  assert.equal(r!.meta?.mode, "live");
+  assert.equal(r!.meta?.billable, false);
+  const body = r!.body as { cancelled?: boolean; cancel_phase?: string };
+  assert.equal(body.cancelled, true);
+  assert.equal(body.cancel_phase, "extracting");
+  assert.ok(r!.gaps.some((g) => /cancelled/i.test(g)));
+  // Must not continue extracting the full candidate set after abort.
+  assert.ok(extractAttempts <= 2, `extractAttempts=${extractAttempts}`);
+  const gate = applyChargeGate("research_brief", "standard", r!.meta);
+  assert.equal(gate.billable, false);
+  assert.equal(gate.charge_usd, 0);
+});
+
+await test("P3a: abort before search → cancelled, zero provider spend", async () => {
+  const ctrl = new AbortController();
+  ctrl.abort();
+  const provider = new MockProvider({ pages: defaultMockPages(OFF_GOLDEN) });
+  const r = await runLiveBriefPipeline(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider, signal: ctrl.signal },
+  );
+  assert.ok(r);
+  assert.equal(r!.meta?.billable, false);
+  const body = r!.body as { cancelled?: boolean };
+  assert.equal(body.cancelled, true);
+  assert.equal(provider.searchCalls, 0);
+  assert.equal(provider.extractCalls, 0);
+  const gate = applyChargeGate("research_brief", "standard", r!.meta);
+  assert.equal(gate.charge_usd, 0);
+});
+
+await test("P3a: abort mid-search → cancelled non-billable", async () => {
+  const ctrl = new AbortController();
+  const provider = new MockProvider({
+    pages: defaultMockPages(OFF_GOLDEN),
+    searchImpl: async (_q, opts) => {
+      ctrl.abort();
+      if (opts?.signal?.aborted) {
+        const err = new Error("search aborted");
+        err.name = "AbortError";
+        throw err;
+      }
+      return defaultMockPages(OFF_GOLDEN).map((p) => p.url);
+    },
+  });
+  const r = await runLiveBriefPipeline(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider, signal: ctrl.signal },
+  );
+  assert.ok(r);
+  assert.equal(r!.meta?.billable, false);
+  const body = r!.body as { cancelled?: boolean; cancel_phase?: string };
+  assert.equal(body.cancelled, true);
+  assert.equal(body.cancel_phase, "searching");
+  assert.equal(provider.extractCalls, 0);
 });
 
 process.stdout.write(`\npipeline tests: ${passed} passed, ${failed} failed\n`);

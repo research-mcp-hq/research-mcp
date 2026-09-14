@@ -12,7 +12,12 @@ import {
   comparePathMayBeBillable,
   lookupPathMayBeBillable,
 } from "./research/samples.js";
-import { runCompareOptions, runResearchBrief, runSourceLookup } from "./research/index.js";
+import {
+  createMcpProgressReporter,
+  runCompareOptions,
+  runResearchBrief,
+  runSourceLookup,
+} from "./research/index.js";
 import { SERVER_NAME, VERSION } from "./version.js";
 import type { Depth, ResearchMeta } from "./types.js";
 
@@ -116,6 +121,8 @@ function logUsage(
 
 /**
  * Per-request MCP server factory. Tools are read-only research (annotations are hints).
+ * P3a: research_brief honors ctx.mcpReq.signal (cancel / HTTP disconnect) and
+ * emits phase-only progress when _meta.progressToken is present.
  */
 export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
   const server = new McpServer({ name: SERVER_NAME, version: VERSION });
@@ -136,13 +143,21 @@ export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
       }),
       annotations: TOOL_ANNOTATIONS,
     },
-    async ({ query, depth, as_of_hint }) => {
+    async ({ query, depth, as_of_hint }, mcpCtx) => {
       const mayBill = briefPathMayBeBillable(query, depth as Depth);
       const blocked = precheckCredits(ctx, "research_brief", depth, mayBill);
       if (blocked) return blocked;
 
+      const signal = mcpCtx?.mcpReq?.signal;
+      const onProgress = mcpCtx
+        ? createMcpProgressReporter(mcpCtx)
+        : undefined;
+
       const started = Date.now();
-      const result = await runResearchBrief({ query, depth, as_of_hint });
+      const result = await runResearchBrief(
+        { query, depth, as_of_hint },
+        { signal, onProgress },
+      );
       const latencyMs = Date.now() - started;
       const est = applyChargeGate("research_brief", depth, resultMeta(result));
       const debitErr = logUsage(ctx, "research_brief", depth, latencyMs, est);

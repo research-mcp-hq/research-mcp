@@ -6,7 +6,13 @@ import { liveResearchEnabled } from "../live.js";
 import { LocalHttpProvider } from "./local.js";
 import type { ResearchProvider } from "./types.js";
 
-export type { ExtractedPage, ResearchProvider, SynthesizeInput, SynthesizeOutput } from "./types.js";
+export type {
+  ExtractedPage,
+  ProviderCallOpts,
+  ResearchProvider,
+  SynthesizeInput,
+  SynthesizeOutput,
+} from "./types.js";
 export { MockProvider, defaultMockPages } from "./mock.js";
 export { LocalHttpProvider } from "./local.js";
 

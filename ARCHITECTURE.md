@@ -46,7 +46,8 @@ Annotations (hints only — hosts must not treat as a sandbox):
 - **COGS caps:** `COGS_CAP_CENTS_QUICK/STANDARD/DEEP` plus per-request unit costs. If projected spend would exceed the cap, abort fail-closed (`billable=false`, clear gap, no provider calls).
 - **Quote gate (P2+MUST):** every load-bearing claim must have a quote that is a (lightly normalized) substring of **that claim's `source_url` page only** (no cross-page fallback; missing/unfetched `source_url` → fail). Claim+quote must also share meaningful **query tokens** (stopword-filtered; ≥2 overlaps when the query has ≥3 tokens). Fail → `billable=false`, confidence `unknown`/`low`, gaps explain. **Do not** unlock billing via synthesizer label alone (`!isExtractive` is insufficient).
 - **local-quoted-v1:** picks the first verbatim sentence per page that is query-tied; arbitrary homepage first-sentences without query overlap → no claims → not billable. Bills when density + source_url-bound quotes + query-tie pass.
-- **Live brief charge gate:** `billable = densityConfidenceOk && quotesVerified` (quotesVerified includes query-tie). Quality-fail, quote-fail, and COGS-abort stay `billable=false`.
+- **Live brief charge gate:** `billable = densityConfidenceOk && quotesVerified` (quotesVerified includes query-tie). Quality-fail, quote-fail, COGS-abort, and **cancel** stay `billable=false`.
+- **Progress + cancel (P3a):** live `research_brief` emits phase-only progress `searching` → `extracting` → `verifying` (MCP `notifications/progress` when `_meta.progressToken` is set). Never reports “found N primaries” before verify. Honors `ctx.mcpReq.signal` / AbortSignal: aborts in-flight fetch/search, stops spend, returns non-billable `{ cancelled: true, cancel_phase }` with a clear gap.
 
 ## Metering + prepaid credits (path C)
 
@@ -71,4 +72,4 @@ Routes: `POST /webhooks/stripe` (raw body), `POST /billing/checkout`, `GET /bill
 - `npm run eval:off` — off-golden cases (mocked fetch): no invented 404/`found`, 403→blocked, sample billable=false.
 - `npm run eval:all` — goldens + off-golden + pipeline.
 - `npm run test:billing` — ledger/webhook/debit invariants (mocked Stripe; no live API).
-- `npm run test:pipeline` — mock search→extract→synthesize→quote gate; billable only on verified quotes; COGS over-cap fail-closed; no vendor calls.
+- `npm run test:pipeline` — mock search→extract→synthesize→quote gate; billable only on verified quotes; COGS over-cap fail-closed; P3a progress phases + abort mid-pipeline; no vendor calls.

@@ -8,6 +8,7 @@ import type {
 } from "../types.js";
 import type { CogsConfig } from "./cogs.js";
 import { runLiveBriefPipeline } from "./pipeline.js";
+import type { ProgressReporter } from "./progress.js";
 import { defaultResearchProvider } from "./providers/index.js";
 import type { ResearchProvider } from "./providers/types.js";
 import { isGoldenBriefQuery, resolveBrief, resolveCompare, resolveLookup } from "./samples.js";
@@ -16,6 +17,10 @@ export interface ResearchBriefOpts {
   /** Injectable provider (tests: MockProvider). Production: defaultResearchProvider(). */
   provider?: ResearchProvider;
   cogs?: CogsConfig;
+  /** Cancel token — abort in-flight search/extract (P3a). */
+  signal?: AbortSignal;
+  /** Phase-only progress reporter (P3a). */
+  onProgress?: ProgressReporter;
 }
 
 export async function runResearchBrief(
@@ -39,6 +44,8 @@ export async function runResearchBrief(
         const live = await runLiveBriefPipeline(input, {
           provider,
           cogs: opts?.cogs,
+          signal: opts?.signal,
+          onProgress: opts?.onProgress,
         });
         if (live) return live;
       } catch {
@@ -78,7 +85,14 @@ export {
   isGoldenBriefQuery,
 } from "./samples.js";
 
-export { runLiveBriefPipeline, briefBarPassing, briefDensityOk } from "./pipeline.js";
+export {
+  runLiveBriefPipeline,
+  briefBarPassing,
+  briefDensityOk,
+  createMcpProgressReporter,
+  PIPELINE_PHASES,
+} from "./pipeline.js";
+export type { PipelinePhase, ProgressReporter } from "./progress.js";
 export {
   verifyQuotes,
   quoteInPages,

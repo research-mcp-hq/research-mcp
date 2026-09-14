@@ -2,12 +2,16 @@
  * In-process mock provider: no network, no API keys.
  */
 
-import type { ExtractedPage, ResearchProvider } from "./types.js";
+import type {
+  ExtractedPage,
+  ProviderCallOpts,
+  ResearchProvider,
+} from "./types.js";
 
 export interface MockProviderOptions {
   pages?: ExtractedPage[];
-  searchImpl?: (query: string) => Promise<string[]>;
-  extractImpl?: (url: string) => Promise<ExtractedPage>;
+  searchImpl?: (query: string, opts?: ProviderCallOpts) => Promise<string[]>;
+  extractImpl?: (url: string, opts?: ProviderCallOpts) => Promise<ExtractedPage>;
 }
 
 const FILLER =
@@ -78,6 +82,14 @@ export function defaultMockPages(query = "the research topic"): ExtractedPage[] 
   ];
 }
 
+function abortIfNeeded(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    const err = new Error("mock aborted");
+    err.name = "AbortError";
+    throw err;
+  }
+}
+
 export class MockProvider implements ResearchProvider {
   readonly id = "mock";
   searchCalls = 0;
@@ -94,21 +106,25 @@ export class MockProvider implements ResearchProvider {
     this.extractImpl = opts.extractImpl;
   }
 
-  async search(query: string): Promise<string[]> {
+  async search(query: string, opts?: ProviderCallOpts): Promise<string[]> {
+    abortIfNeeded(opts?.signal);
     this.searchCalls += 1;
     this.searchedQueries.push(query);
-    if (this.searchImpl) return this.searchImpl(query);
+    if (this.searchImpl) return this.searchImpl(query, opts);
+    abortIfNeeded(opts?.signal);
     return this.pages.map((p) => p.url);
   }
 
-  async fetchExtract(url: string): Promise<ExtractedPage> {
+  async fetchExtract(url: string, opts?: ProviderCallOpts): Promise<ExtractedPage> {
+    abortIfNeeded(opts?.signal);
     this.extractCalls += 1;
     this.extractedUrls.push(url);
-    if (this.extractImpl) return this.extractImpl(url);
+    if (this.extractImpl) return this.extractImpl(url, opts);
+    abortIfNeeded(opts?.signal);
     const page = this.pages.find((p) => p.url === url);
     if (!page) {
       throw new Error(`mock fetchExtract miss: ${url}`);
     }
-    return { ...page };
+    return { ...page, fetch_source: "live" };
   }
 }
