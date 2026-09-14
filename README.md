@@ -13,7 +13,7 @@ Static landing for **https://researchmcp.dev** lives in [`www/`](./www/) (no bui
 ## MCP URL (production)
 
 ```
-https://research-mcp-mhh.fly.dev/mcp
+https://mcp.researchmcp.dev/mcp
 ```
 
 Health: `https://research-mcp-mhh.fly.dev/health`  
@@ -24,7 +24,7 @@ Credits meter: `GET https://research-mcp-mhh.fly.dev/billing/credits` (auth’d)
 {
   "mcpServers": {
     "research-mcp": {
-      "url": "https://research-mcp-mhh.fly.dev/mcp",
+      "url": "https://mcp.researchmcp.dev/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY"
       }
@@ -142,10 +142,10 @@ npm run test:billing  # ledger / webhook / credits meter
 | Surface | URL / ID |
 | --- | --- |
 | GitHub | https://github.com/research-mcp-hq/research-mcp |
-| Fly MCP | https://research-mcp-mhh.fly.dev/mcp |
+| Fly MCP | https://mcp.researchmcp.dev/mcp |
 | Smithery (discovery only) | https://smithery.ai/servers/research-mcp-hq/research-mcp |
 
-Homepage for listings: **GitHub**, not Smithery.
+Homepage for listings: **https://researchmcp.dev**, not Smithery.
 
 ## Ops
 
