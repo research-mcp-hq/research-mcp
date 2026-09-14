@@ -38,6 +38,10 @@ Every `/mcp` and `/billing/credits` request:
 
 Keys: prepaid customer key (from Checkout success page) **or** break-glass `API_KEYS` (ops; no ledger debit).
 
+## Privacy (demand signals)
+
+We log **category mix** (tool, topic bucket, host, billable vs fail=$0) — **not your questions**. Opt-in via `DEMAND_LOG=1` on the server; default off.
+
 ## Pricing (locked)
 
 | Pack | Credits |

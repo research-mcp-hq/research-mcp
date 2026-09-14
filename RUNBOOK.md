@@ -56,6 +56,32 @@ COGS (defaults under SKU list prices): `COGS_CAP_CENTS_QUICK=10`, `STANDARD=25`,
 
 Off-golden `source_lookup` performs a real HTTP GET (~8s timeout). 403 → `blocked`; never invent status without a response.
 
+## Demand log (R1)
+
+```bash
+DEMAND_LOG=1 API_KEYS=dev-key-1 npm start
+# stdout: type:"usage" then type:"demand" (same request_id) after charge gate
+```
+
+Default `DEMAND_LOG=0`. Demand rows never include raw questions — category mix only.
+
+**Host header map (best-effort):**
+
+| Detected `host` | Headers / UA substrings |
+| --- | --- |
+| `cursor` | `User-Agent` or client name contains `cursor` |
+| `claude` | `claude` or `anthropic` |
+| `openai_agents` | `openai-agents`, `openai agents`, `agents sdk` |
+| `smithery` | `smithery` (UA or `x-smithery-client`) |
+| `unknown` | default — never infer from query text |
+
+Also inspected: `x-mcp-client`, `x-mcp-client-name`, `mcp-client-name`, `x-client-name`, `x-client-id`.
+
+```bash
+npm run test:demand
+# classifier buckets + no query-like keys on demand events
+```
+
 ## Docker
 
 `Dockerfile` is ready. This box may not have the `docker` CLI — build elsewhere:
