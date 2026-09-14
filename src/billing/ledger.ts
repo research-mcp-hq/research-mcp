@@ -47,7 +47,11 @@ export function getBalanceCents(db: LedgerDb, customerId: string): number {
   return row?.balance_cents ?? 0;
 }
 
-/** Pre-check before expensive work for customer keys. */
+/**
+ * Pre-check before expensive work for customer keys.
+ * Server skips this (soft-reserve 0) when the path is known non-billable
+ * (sample, depth-mismatched golden, snippet-only live, non-URL unaudited).
+ */
 export function assertSufficientCredits(
   db: LedgerDb,
   customerId: string,

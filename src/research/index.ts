@@ -3,6 +3,7 @@ import type {
   Depth,
   FetchFn,
   ResearchBriefResult,
+  SearchFn,
   SourceLookupResult,
 } from "../types.js";
 import { liveResearchEnabled, tryLiveBriefQuick } from "./live.js";
@@ -33,9 +34,16 @@ export async function runSourceLookup(
     claim_or_url: string;
     ask: string;
   },
-  opts?: { fetch?: FetchFn },
+  opts?: { fetch?: FetchFn; search?: SearchFn },
 ): Promise<SourceLookupResult> {
   return resolveLookup(input, opts);
 }
 
-export { resolveBrief, resolveCompare, resolveLookup };
+export {
+  resolveBrief,
+  resolveCompare,
+  resolveLookup,
+  briefPathMayBeBillable,
+  comparePathMayBeBillable,
+  lookupPathMayBeBillable,
+} from "./samples.js";

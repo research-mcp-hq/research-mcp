@@ -17,7 +17,12 @@ export type ResearchMode = "golden" | "sample" | "live";
 export interface ResearchMeta {
   /** How the answer was produced */
   mode: ResearchMode;
-  /** Charge only golden-matched or live-fetched + quality-bar-passing */
+  /**
+   * Charge only when work matches the SKU:
+   * - golden-matched at the fixture's authored depth (typically standard)
+   * - live-fetched AND quality-bar-passing
+   * Depth-mismatched goldens, sample, snippet-only live → false
+   */
   billable: boolean;
 }
 
@@ -65,3 +70,12 @@ export type FetchFn = (
   input: string | URL | Request,
   init?: RequestInit,
 ) => Promise<Response>;
+
+/** Injectable search for lookup miss → replacement URL (returns candidate URLs) */
+export type SearchFn = (query: string) => Promise<string[]>;
+
+/**
+ * Depth goldens were authored for. Billing policy: unchanged golden bodies are
+ * billable only when caller depth equals this (price must match work).
+ */
+export const GOLDEN_BRIEF_AUTHORED_DEPTH: Depth = "standard";

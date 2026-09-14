@@ -4,16 +4,24 @@
  *
  * Off-golden source_lookup:
  * - URL → real HTTP GET (injectable fetch); never invent http_status without a response
+ * - On live 404/not_found → searchable replacement (injectable search), then GET
  * - non-URL claim → verdict unaudited (not found); no fabricated sources
+ *
+ * Billing honesty:
+ * - Golden briefs billable only at GOLDEN_BRIEF_AUTHORED_DEPTH (standard);
+ *   other depths on the same frozen body → billable=false (price≠work).
+ * - Live lookup billable only with ask-aligned excerpt + publisher + page date.
  */
 
 import { createHash } from "node:crypto";
 import {
   AS_OF,
+  GOLDEN_BRIEF_AUTHORED_DEPTH,
   type CompareOptionsResult,
   type Depth,
   type FetchFn,
   type ResearchBriefResult,
+  type SearchFn,
   type SourceLookupResult,
 } from "../types.js";
 import {
@@ -30,6 +38,8 @@ import {
 } from "./goldens.js";
 
 const LOOKUP_TIMEOUT_MS = 8000;
+/** Paid lookup bar: excerpt must be at least this long AND ask-aligned + dated */
+const LOOKUP_EXCERPT_MIN = 80;
 
 function norm(s: string): string {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
@@ -76,31 +86,86 @@ function extractSnippet(bodyText: string, ask: string, maxLen = 280): string {
   return slice.length > 0 ? slice : text.slice(0, maxLen).trim();
 }
 
-export function resolveBrief(input: {
-  query: string;
-  depth: Depth;
-  as_of_hint?: string;
-}): ResearchBriefResult {
-  const q = input.query;
+/** Ask-aligned: enough meaningful ask tokens appear in the excerpt/text. */
+function isAskAligned(text: string, ask: string): boolean {
+  const words = ask
+    .toLowerCase()
+    .split(/\W+/)
+    .filter((w) => w.length > 3);
+  if (words.length === 0) return text.trim().length >= LOOKUP_EXCERPT_MIN;
+  const lower = text.toLowerCase();
+  const hits = words.filter((w) => lower.includes(w)).length;
+  const need = Math.min(2, words.length);
+  return hits >= need;
+}
 
+/** Detect a page date (ISO or Month DD, YYYY) in extracted text. */
+export function extractPageDate(text: string): string | null {
+  const iso = text.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+  if (iso) return iso[1]!;
+  const named = text.match(
+    /\b((?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+20\d{2})\b/i,
+  );
+  if (named) return named[1]!;
+  return null;
+}
+
+/**
+ * Paid lookup quality bar (raised beyond 80-char alone):
+ * usable excerpt + ask-aligned quote + publisher identity + page date.
+ */
+export function lookupBarPassing(opts: {
+  excerpt: string;
+  ask: string;
+  url: string;
+  bodyText: string;
+}): boolean {
+  const { excerpt, ask, url, bodyText } = opts;
+  if (excerpt.length < LOOKUP_EXCERPT_MIN) return false;
+  if (!isAskAligned(excerpt, ask) && !isAskAligned(bodyText, ask)) return false;
+  if (hostname(url) === "unknown") return false;
+  if (!extractPageDate(bodyText)) return false;
+  return true;
+}
+
+/**
+ * Apply golden-brief billing honesty.
+ * Choice (documented): goldens bill only for the depth they were authored for
+ * (GOLDEN_BRIEF_AUTHORED_DEPTH = standard). Caller depth quick/deep on the same
+ * frozen body → meta.billable=false with a gap noting price≠work.
+ */
+function attachGoldenBriefMeta(
+  fixture: ResearchBriefResult,
+  callerDepth: Depth,
+  query: string,
+): ResearchBriefResult {
+  const authored = GOLDEN_BRIEF_AUTHORED_DEPTH;
+  const depthOk = callerDepth === authored;
+  const gaps = [...fixture.gaps];
+  if (!depthOk) {
+    gaps.push(
+      `Golden fixture authored for depth=${authored}; caller depth=${callerDepth} — price≠work on unchanged body, not billed (billable=false).`,
+    );
+  }
+  return {
+    ...fixture,
+    depth: callerDepth,
+    query,
+    gaps,
+    meta: { mode: "golden", billable: depthOk },
+  };
+}
+
+function matchBriefGolden(query: string): ResearchBriefResult | null {
+  const q = query;
   if (
     includesAll(q, ["model context protocol"]) &&
     (includesAll(q, ["who created"]) || includesAll(q, ["who maintains"]))
   ) {
-    return {
-      ...goldenBriefHappy(),
-      depth: input.depth,
-      query: q,
-      meta: { mode: "golden", billable: true },
-    };
+    return goldenBriefHappy();
   }
   if (includesAll(q, ["smithery"]) && includesAll(q, ["hobby"])) {
-    return {
-      ...goldenBriefSparse(),
-      depth: input.depth,
-      query: q,
-      meta: { mode: "golden", billable: true },
-    };
+    return goldenBriefSparse();
   }
   if (
     includesAll(q, ["annotation"]) &&
@@ -108,22 +173,84 @@ export function resolveBrief(input: {
       includesAll(q, ["readonlyhint"]) ||
       includesAll(q, ["trust"]))
   ) {
-    return {
-      ...goldenNicheBriefAnnotations(),
-      depth: input.depth,
-      query: q,
-      meta: { mode: "golden", billable: true },
-    };
+    return goldenNicheBriefAnnotations();
   }
   if (includesAll(q, ["agents api"]) && includesAll(q, ["mcp"])) {
-    return {
-      ...goldenNicheBriefAgentsApi(),
-      depth: input.depth,
-      query: q,
-      meta: { mode: "golden", billable: true },
-    };
+    return goldenNicheBriefAgentsApi();
   }
+  return null;
+}
 
+function matchCompareGolden(input: {
+  options: string[];
+  question: string;
+}): CompareOptionsResult | null {
+  const opts = input.options.map(norm);
+  const q = input.question;
+  if (
+    opts.includes("mcp") &&
+    opts.includes("a2a") &&
+    (includesAll(q, ["research tools"]) || includesAll(q, ["expose"]))
+  ) {
+    return goldenCompareHappy();
+  }
+  if (
+    opts.some((o) => o.includes("smithery")) &&
+    opts.some((o) => o.includes("registry") || o.includes("official"))
+  ) {
+    return goldenCompareMissing();
+  }
+  return null;
+}
+
+function matchLookupGolden(claim: string): SourceLookupResult | null {
+  const c = claim;
+  if (includesAll(c, ["anthropic.com/news/model-context-protocol"])) {
+    return goldenLookupFound();
+  }
+  if (includesAll(c, ["specification/2019-01-01"])) {
+    return goldenLookupNotFound();
+  }
+  if (includesAll(c, ["150"]) && includesAll(c, ["a2a"])) {
+    return goldenLookupConflicting();
+  }
+  if (
+    includesAll(c, ["token passthrough"]) ||
+    (includesAll(c, ["token"]) && includesAll(c, ["passthrough"]))
+  ) {
+    return goldenNicheLookupTokenPassthrough();
+  }
+  return null;
+}
+
+/** True when the path can still bill (full SKU precheck warranted). */
+export function briefPathMayBeBillable(query: string, depth: Depth): boolean {
+  const g = matchBriefGolden(query);
+  if (!g) return false;
+  return depth === GOLDEN_BRIEF_AUTHORED_DEPTH;
+}
+
+export function comparePathMayBeBillable(
+  options: string[],
+  question: string,
+): boolean {
+  return matchCompareGolden({ options, question }) !== null;
+}
+
+export function lookupPathMayBeBillable(claimOrUrl: string): boolean {
+  if (matchLookupGolden(claimOrUrl)) return true;
+  return /^https?:\/\//i.test(claimOrUrl.trim());
+}
+
+export function resolveBrief(input: {
+  query: string;
+  depth: Depth;
+  as_of_hint?: string;
+}): ResearchBriefResult {
+  const matched = matchBriefGolden(input.query);
+  if (matched) {
+    return attachGoldenBriefMeta(matched, input.depth, input.query);
+  }
   return genericBrief(input);
 }
 
@@ -132,35 +259,16 @@ export function resolveCompare(input: {
   question: string;
   criteria: string[];
 }): CompareOptionsResult {
-  const opts = input.options.map(norm);
-  const q = input.question;
-
-  if (
-    opts.includes("mcp") &&
-    opts.includes("a2a") &&
-    (includesAll(q, ["research tools"]) || includesAll(q, ["expose"]))
-  ) {
+  const matched = matchCompareGolden(input);
+  if (matched) {
     return {
-      ...goldenCompareHappy(),
+      ...matched,
       options: input.options,
       question: input.question,
-      criteria: input.criteria.length ? input.criteria : goldenCompareHappy().criteria,
+      criteria: input.criteria.length ? input.criteria : matched.criteria,
       meta: { mode: "golden", billable: true },
     };
   }
-  if (
-    opts.some((o) => o.includes("smithery")) &&
-    opts.some((o) => o.includes("registry") || o.includes("official"))
-  ) {
-    return {
-      ...goldenCompareMissing(),
-      options: input.options,
-      question: input.question,
-      criteria: input.criteria.length ? input.criteria : goldenCompareMissing().criteria,
-      meta: { mode: "golden", billable: true },
-    };
-  }
-
   return genericCompare(input);
 }
 
@@ -169,48 +277,22 @@ export async function resolveLookup(
     claim_or_url: string;
     ask: string;
   },
-  opts?: { fetch?: FetchFn },
+  opts?: { fetch?: FetchFn; search?: SearchFn },
 ): Promise<SourceLookupResult> {
   const c = input.claim_or_url;
   const ask = input.ask;
 
-  if (includesAll(c, ["anthropic.com/news/model-context-protocol"])) {
+  const matched = matchLookupGolden(c);
+  if (matched) {
     return {
-      ...goldenLookupFound(),
-      claim_or_url: c,
-      ask,
-      meta: { mode: "golden", billable: true },
-    };
-  }
-  if (includesAll(c, ["specification/2019-01-01"])) {
-    return {
-      ...goldenLookupNotFound(),
-      claim_or_url: c,
-      ask,
-      meta: { mode: "golden", billable: true },
-    };
-  }
-  if (includesAll(c, ["150"]) && includesAll(c, ["a2a"])) {
-    return {
-      ...goldenLookupConflicting(),
-      claim_or_url: c,
-      ask,
-      meta: { mode: "golden", billable: true },
-    };
-  }
-  if (
-    includesAll(c, ["token passthrough"]) ||
-    (includesAll(c, ["token"]) && includesAll(c, ["passthrough"]))
-  ) {
-    return {
-      ...goldenNicheLookupTokenPassthrough(),
+      ...matched,
       claim_or_url: c,
       ask,
       meta: { mode: "golden", billable: true },
     };
   }
 
-  return genericLookup(input, opts?.fetch ?? globalThis.fetch);
+  return genericLookup(input, opts?.fetch ?? globalThis.fetch, opts?.search);
 }
 
 function seed(s: string): number {
@@ -421,6 +503,7 @@ function genericCompare(input: {
 async function genericLookup(
   input: { claim_or_url: string; ask: string },
   fetchFn: FetchFn,
+  searchFn?: SearchFn,
 ): Promise<SourceLookupResult> {
   const trimmed = input.claim_or_url.trim();
   const looksUrl = /^https?:\/\//i.test(trimmed);
@@ -449,20 +532,59 @@ async function genericLookup(
     };
   }
 
-  return liveFetchLookup(trimmed, input.ask, fetchFn);
+  return liveFetchLookup(trimmed, input.ask, fetchFn, searchFn);
 }
 
-async function liveFetchLookup(
-  url: string,
-  ask: string,
+/** Default DuckDuckGo HTML search (uses injectable fetch). */
+export async function defaultLookupSearch(
+  query: string,
   fetchFn: FetchFn,
-): Promise<SourceLookupResult> {
+): Promise<string[]> {
+  try {
+    const q = encodeURIComponent(query.slice(0, 200));
+    const url = `https://html.duckduckgo.com/html/?q=${q}`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), LOOKUP_TIMEOUT_MS);
+    const res = await fetchFn(url, {
+      method: "GET",
+      signal: ctrl.signal,
+      headers: { "user-agent": "research-mcp/0.1 (+source-lookup-search)" },
+    });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    const html = await res.text();
+    const urls: string[] = [];
+    const linkRe =
+      /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = linkRe.exec(html)) !== null && urls.length < 4) {
+      const href = decodeDuckRedirect(m[1]!);
+      if (href.startsWith("http") && !urls.includes(href)) urls.push(href);
+    }
+    return urls;
+  } catch {
+    return [];
+  }
+}
+
+function decodeDuckRedirect(href: string): string {
+  try {
+    const u = new URL(href, "https://html.duckduckgo.com");
+    const uddg = u.searchParams.get("uddg");
+    if (uddg) return decodeURIComponent(uddg);
+    return href;
+  } catch {
+    return href;
+  }
+}
+
+async function getOnce(
+  url: string,
+  fetchFn: FetchFn,
+): Promise<{ status: number; bodyText: string } | { error: string }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), LOOKUP_TIMEOUT_MS);
-  let fetchOccurred = false;
-
   try {
-    fetchOccurred = true;
     const res = await fetchFn(url, {
       method: "GET",
       signal: ctrl.signal,
@@ -470,147 +592,14 @@ async function liveFetchLookup(
       headers: { "user-agent": "research-mcp/0.1 (+source-lookup)" },
     });
     clearTimeout(timer);
-
-    const status = res.status;
-
-    if (status === 404) {
-      return {
-        claim_or_url: url,
-        ask,
-        verdict: "not_found",
-        http_status: 404,
-        tldr: `Live GET returned HTTP 404 for ${url}.`,
-        body: {
-          mode: "live",
-          ask,
-          fetched: true,
-          note: "Status recorded from the live response only.",
-        },
-        confidence: "high",
-        sources: [
-          {
-            title: `GET ${url}`,
-            url,
-            publisher: hostname(url),
-            accessed: AS_OF,
-            type: "primary",
-            supports: "Live GET returned 404 Not Found",
-          },
-        ],
-        gaps: ["Page does not exist at this URL (live 404)."],
-        as_of: AS_OF,
-        // 404 alone is not a quality-bar-passing research product
-        meta: { mode: "live", billable: false },
-      };
+    let bodyText = "";
+    try {
+      const raw = await res.text();
+      bodyText = stripHtml(raw);
+    } catch {
+      bodyText = "";
     }
-
-    if (status === 403) {
-      return {
-        claim_or_url: url,
-        ask,
-        verdict: "blocked",
-        http_status: 403,
-        tldr: `Live GET returned HTTP 403 Forbidden for ${url} — blocked, not proof the resource does not exist.`,
-        body: {
-          mode: "live",
-          ask,
-          fetched: true,
-          note: "403 means access blocked; do not equate with not_found.",
-        },
-        confidence: "high",
-        sources: [
-          {
-            title: `GET ${url}`,
-            url,
-            publisher: hostname(url),
-            accessed: AS_OF,
-            type: "primary",
-            supports: "Live GET returned 403 Forbidden (blocked)",
-          },
-        ],
-        gaps: [
-          "Access blocked (403). Retry with different credentials/agent or use an alternate primary URL.",
-        ],
-        as_of: AS_OF,
-        meta: { mode: "live", billable: false },
-      };
-    }
-
-    if (status >= 200 && status < 300) {
-      let bodyText = "";
-      try {
-        const raw = await res.text();
-        bodyText = stripHtml(raw);
-      } catch {
-        bodyText = "";
-      }
-      const snippet = bodyText ? extractSnippet(bodyText, ask) : "";
-      const hasContent = snippet.length >= 80;
-      const confidence = hasContent ? "medium" : "low";
-      // Lookup quality bar: live 2xx + primary source + usable excerpt
-      const barPassing = hasContent;
-
-      return {
-        claim_or_url: url,
-        ask,
-        verdict: "found",
-        http_status: status,
-        tldr: hasContent
-          ? `Live GET ${status} for ${url}. Short excerpt extracted from page text (paraphrase/quote candidate).`
-          : `Live GET ${status} for ${url}, but little extractable text; treat confidence as low.`,
-        body: {
-          mode: "live",
-          ask,
-          fetched: true,
-          excerpt: snippet || null,
-          paraphrase: snippet
-            ? `Page text near ask keywords: “${snippet.slice(0, 200)}${snippet.length > 200 ? "…" : ""}”`
-            : null,
-        },
-        confidence,
-        sources: [
-          {
-            title: `GET ${url}`,
-            url,
-            publisher: hostname(url),
-            accessed: AS_OF,
-            type: "primary",
-            supports: hasContent
-              ? `Live GET ${status}; excerpt supports ask: ${snippet.slice(0, 120)}`
-              : `Live GET ${status}; body had little extractable text`,
-          },
-        ],
-        gaps: hasContent
-          ? []
-          : ["Response body yielded little text; re-fetch or try another primary."],
-        as_of: AS_OF,
-        meta: { mode: "live", billable: barPassing },
-      };
-    }
-
-    // Other HTTP statuses from a real response — record honestly
-    return {
-      claim_or_url: url,
-      ask,
-      verdict: status >= 400 ? "blocked" : "not_found",
-      http_status: status,
-      tldr: `Live GET returned HTTP ${status} for ${url}.`,
-      body: { mode: "live", ask, fetched: true },
-      confidence: "unknown",
-      sources: [
-        {
-          title: `GET ${url}`,
-          url,
-          publisher: hostname(url),
-          accessed: AS_OF,
-          type: "primary",
-          supports: `Live GET returned HTTP ${status}`,
-        },
-      ],
-      gaps: [`Unexpected HTTP status ${status} from live fetch.`],
-      as_of: AS_OF,
-      meta: { mode: "live", billable: false },
-    };
+    return { status: res.status, bodyText };
   } catch (err) {
     clearTimeout(timer);
     const reason =
@@ -619,20 +608,110 @@ async function liveFetchLookup(
           ? "timeout"
           : err.message || "network error"
         : "network error";
+    return { error: reason };
+  }
+}
 
+function foundFromBody(
+  url: string,
+  ask: string,
+  status: number,
+  bodyText: string,
+  opts?: { verdict?: "found" | "moved"; priorUrl?: string; searched?: boolean },
+): SourceLookupResult {
+  const snippet = bodyText ? extractSnippet(bodyText, ask) : "";
+  const pageDate = extractPageDate(bodyText);
+  const publisher = hostname(url);
+  const barPassing = lookupBarPassing({
+    excerpt: snippet,
+    ask,
+    url,
+    bodyText,
+  });
+  const hasContent = snippet.length >= LOOKUP_EXCERPT_MIN;
+  const confidence = barPassing ? "medium" : hasContent ? "low" : "low";
+  const verdict = opts?.verdict ?? "found";
+  const gaps: string[] = [];
+  if (!hasContent) {
+    gaps.push("Response body yielded little text; re-fetch or try another primary.");
+  } else if (!barPassing) {
+    if (!isAskAligned(snippet, ask) && !isAskAligned(bodyText, ask)) {
+      gaps.push("Excerpt not ask-aligned — not charged as research.");
+    }
+    if (!pageDate) {
+      gaps.push("No page date detected — paid lookup bar requires publisher/date.");
+    }
+    gaps.push(
+      "Paid lookup bar requires ask-aligned quote + publisher + page date (80 chars alone is not enough).",
+    );
+  }
+
+  return {
+    claim_or_url: opts?.priorUrl ?? url,
+    ask,
+    verdict,
+    http_status: status,
+    tldr:
+      verdict === "moved"
+        ? `Original URL missed; replacement GET ${status} at ${url}.`
+        : hasContent
+          ? `Live GET ${status} for ${url}. Short excerpt extracted from page text (paraphrase/quote candidate).`
+          : `Live GET ${status} for ${url}, but little extractable text; treat confidence as low.`,
+    body: {
+      mode: "live",
+      ask,
+      fetched: true,
+      excerpt: snippet || null,
+      page_date: pageDate,
+      publisher,
+      ...(opts?.priorUrl
+        ? { original_url: opts.priorUrl, replacement_url: url }
+        : {}),
+      ...(opts?.searched ? { replacement_search: true } : {}),
+      paraphrase: snippet
+        ? `Page text near ask keywords: “${snippet.slice(0, 200)}${snippet.length > 200 ? "…" : ""}”`
+        : null,
+      billable: barPassing,
+    },
+    confidence,
+    sources: [
+      {
+        title: `GET ${url}`,
+        url,
+        publisher,
+        accessed: AS_OF,
+        type: "primary",
+        supports: hasContent
+          ? `Live GET ${status}; excerpt supports ask: ${snippet.slice(0, 120)}`
+          : `Live GET ${status}; body had little extractable text`,
+      },
+    ],
+    gaps,
+    as_of: AS_OF,
+    meta: { mode: "live", billable: barPassing },
+  };
+}
+
+async function liveFetchLookup(
+  url: string,
+  ask: string,
+  fetchFn: FetchFn,
+  searchFn?: SearchFn,
+): Promise<SourceLookupResult> {
+  const first = await getOnce(url, fetchFn);
+
+  if ("error" in first) {
     return {
       claim_or_url: url,
       ask,
-      // Network/timeout: blocked (not not_found) — no response body to prove absence
       verdict: "blocked",
-      // Never invent a status code when no HTTP response was received
       http_status: null,
-      tldr: `Live GET failed for ${url} (${reason}). No HTTP status recorded.`,
+      tldr: `Live GET failed for ${url} (${first.error}). No HTTP status recorded.`,
       body: {
         mode: "live",
         ask,
-        fetched: fetchOccurred,
-        fetch_error: reason,
+        fetched: true,
+        fetch_error: first.error,
       },
       confidence: "unknown",
       sources: [
@@ -642,15 +721,154 @@ async function liveFetchLookup(
           publisher: hostname(url),
           accessed: AS_OF,
           type: "primary",
-          supports: `Live GET did not complete (${reason}); http_status left null`,
+          supports: `Live GET did not complete (${first.error}); http_status left null`,
         },
       ],
       gaps: [
-        `Fetch failed (${reason}); live retry or alternate URL required.`,
+        `Fetch failed (${first.error}); live retry or alternate URL required.`,
         "No http_status invented — no HTTP response was received.",
       ],
       as_of: AS_OF,
       meta: { mode: "live", billable: false },
     };
   }
+
+  const { status, bodyText } = first;
+
+  if (status === 404) {
+    return lookupMissWithReplacement(url, ask, fetchFn, searchFn);
+  }
+
+  if (status === 403) {
+    return {
+      claim_or_url: url,
+      ask,
+      verdict: "blocked",
+      http_status: 403,
+      tldr: `Live GET returned HTTP 403 Forbidden for ${url} — blocked, not proof the resource does not exist.`,
+      body: {
+        mode: "live",
+        ask,
+        fetched: true,
+        note: "403 means access blocked; do not equate with not_found.",
+      },
+      confidence: "high",
+      sources: [
+        {
+          title: `GET ${url}`,
+          url,
+          publisher: hostname(url),
+          accessed: AS_OF,
+          type: "primary",
+          supports: "Live GET returned 403 Forbidden (blocked)",
+        },
+      ],
+      gaps: [
+        "Access blocked (403). Retry with different credentials/agent or use an alternate primary URL.",
+      ],
+      as_of: AS_OF,
+      meta: { mode: "live", billable: false },
+    };
+  }
+
+  if (status >= 200 && status < 300) {
+    return foundFromBody(url, ask, status, bodyText);
+  }
+
+  return {
+    claim_or_url: url,
+    ask,
+    verdict: status >= 400 ? "blocked" : "not_found",
+    http_status: status,
+    tldr: `Live GET returned HTTP ${status} for ${url}.`,
+    body: { mode: "live", ask, fetched: true },
+    confidence: "unknown",
+    sources: [
+      {
+        title: `GET ${url}`,
+        url,
+        publisher: hostname(url),
+        accessed: AS_OF,
+        type: "primary",
+        supports: `Live GET returned HTTP ${status}`,
+      },
+    ],
+    gaps: [`Unexpected HTTP status ${status} from live fetch.`],
+    as_of: AS_OF,
+    meta: { mode: "live", billable: false },
+  };
+}
+
+/**
+ * On live 404: search for a replacement URL, then GET that.
+ * Does not invent status. Network errors on replacement stay blocked/null.
+ */
+async function lookupMissWithReplacement(
+  url: string,
+  ask: string,
+  fetchFn: FetchFn,
+  searchFn?: SearchFn,
+): Promise<SourceLookupResult> {
+  const search =
+    searchFn ?? ((q: string) => defaultLookupSearch(q, fetchFn));
+  const searchQuery = `${ask} site:${hostname(url)}`;
+  let candidates: string[] = [];
+  let searchError: string | null = null;
+  try {
+    candidates = await search(searchQuery);
+  } catch (err) {
+    searchError = err instanceof Error ? err.message : "search error";
+  }
+
+  for (const alt of candidates) {
+    if (!alt || alt === url || !/^https?:\/\//i.test(alt)) continue;
+    const altRes = await getOnce(alt, fetchFn);
+    if ("error" in altRes) {
+      // Network error on replacement — do not invent status; keep looking
+      continue;
+    }
+    if (altRes.status >= 200 && altRes.status < 300) {
+      return foundFromBody(alt, ask, altRes.status, altRes.bodyText, {
+        verdict: "moved",
+        priorUrl: url,
+        searched: true,
+      });
+    }
+  }
+
+  return {
+    claim_or_url: url,
+    ask,
+    verdict: "not_found",
+    http_status: 404,
+    tldr: `Live GET returned HTTP 404 for ${url}. Replacement search did not yield a usable page.`,
+    body: {
+      mode: "live",
+      ask,
+      fetched: true,
+      note: "Status recorded from the live response only.",
+      replacement_search: true,
+      replacement_candidates: candidates.length,
+      ...(searchError ? { search_error: searchError } : {}),
+    },
+    confidence: "high",
+    sources: [
+      {
+        title: `GET ${url}`,
+        url,
+        publisher: hostname(url),
+        accessed: AS_OF,
+        type: "primary",
+        supports: "Live GET returned 404 Not Found",
+      },
+    ],
+    gaps: [
+      "Page does not exist at this URL (live 404).",
+      candidates.length === 0
+        ? "Replacement search returned no candidate URLs."
+        : "Replacement candidates were fetched but none returned a usable 2xx page.",
+    ],
+    as_of: AS_OF,
+    meta: { mode: "live", billable: false },
+  };
 }

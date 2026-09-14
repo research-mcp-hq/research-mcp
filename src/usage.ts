@@ -3,7 +3,8 @@
  * (customer keys). Break-glass API_KEYS skip debit.
  *
  * Charge gate:
- * - golden-matched → billable (SKU estimate)
+ * - golden-matched at authored depth (typically standard) → billable (SKU estimate)
+ * - depth-mismatched golden (same frozen body, price≠work) → no charge
  * - live-fetched AND quality-bar-passing → billable
  * - sample/demo path → estimatedCostUsd 0, billable false
  * - quality bar fail / snippet-only live → no charge
@@ -60,7 +61,8 @@ export function estimateUsage(
 
 /**
  * Apply charge gate from result meta.
- * Sample/demo = no charge; quality-bar fail = no charge; snippet-only live = no charge.
+ * Sample/demo = no charge; quality-bar fail = no charge; snippet-only live = no charge;
+ * depth-mismatched golden = no charge.
  */
 export function applyChargeGate(
   tool: string,

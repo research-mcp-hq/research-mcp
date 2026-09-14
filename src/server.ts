@@ -7,9 +7,14 @@ import {
 } from "./usage.js";
 import { getLedgerDb } from "./billing/db.js";
 import { assertSufficientCredits } from "./billing/ledger.js";
+import {
+  briefPathMayBeBillable,
+  comparePathMayBeBillable,
+  lookupPathMayBeBillable,
+} from "./research/samples.js";
 import { runCompareOptions, runResearchBrief, runSourceLookup } from "./research/index.js";
 import { SERVER_NAME, VERSION } from "./version.js";
-import type { ResearchMeta } from "./types.js";
+import type { Depth, ResearchMeta } from "./types.js";
 
 const TOOL_ANNOTATIONS = {
   readOnlyHint: true,
@@ -51,12 +56,23 @@ function resultMeta(data: { meta?: ResearchMeta }): ResearchMeta | undefined {
   return data.meta;
 }
 
+/**
+ * Credit precheck: demand full SKU cents only when the path can be billable.
+ * Known non-billable paths (sample, depth-mismatched golden, snippet-only live,
+ * non-URL unaudited lookup) soft-reserve 0 — skip full SKU assert.
+ * Charge gate still enforces $0 for sample/snippet/quality-fail after the call.
+ */
 function precheckCredits(
   ctx: ToolCallContext,
   tool: string,
-  depth?: string,
+  depth: string | undefined,
+  mayBeBillable: boolean,
 ): ReturnType<typeof errorResult> | null {
   if (ctx.breakGlass || !ctx.customerId) return null;
+  if (!mayBeBillable) {
+    // Soft-reserve 0: path known non-billable — do not demand full SKU upfront
+    return null;
+  }
   const db = getLedgerDb();
   if (!db) return null;
   try {
@@ -121,7 +137,8 @@ export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
       annotations: TOOL_ANNOTATIONS,
     },
     async ({ query, depth, as_of_hint }) => {
-      const blocked = precheckCredits(ctx, "research_brief", depth);
+      const mayBill = briefPathMayBeBillable(query, depth as Depth);
+      const blocked = precheckCredits(ctx, "research_brief", depth, mayBill);
       if (blocked) return blocked;
 
       const started = Date.now();
@@ -153,7 +170,8 @@ export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
       annotations: TOOL_ANNOTATIONS,
     },
     async ({ options, question, criteria }) => {
-      const blocked = precheckCredits(ctx, "compare_options");
+      const mayBill = comparePathMayBeBillable(options, question);
+      const blocked = precheckCredits(ctx, "compare_options", undefined, mayBill);
       if (blocked) return blocked;
 
       const started = Date.now();
@@ -184,7 +202,8 @@ export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
       annotations: TOOL_ANNOTATIONS,
     },
     async ({ claim_or_url, ask }) => {
-      const blocked = precheckCredits(ctx, "source_lookup");
+      const mayBill = lookupPathMayBeBillable(claim_or_url);
+      const blocked = precheckCredits(ctx, "source_lookup", undefined, mayBill);
       if (blocked) return blocked;
 
       const started = Date.now();

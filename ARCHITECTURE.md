@@ -40,18 +40,20 @@ Annotations (hints only — hosts must not treat as a sandbox):
 ## Behavior
 
 - **Default:** high-quality **sample** responses. Golden fixtures in `src/research/goldens.ts` match `quality-bars.md` + `niche-goldens.md`.
-- **Off-golden `source_lookup`:** async real GET for `https?://` URLs (injectable `fetch`, ~8s timeout). Never invent `http_status`. Non-URL claims → `verdict: unaudited`.
+- **Off-golden `source_lookup`:** async real GET for `https?://` URLs (injectable `fetch`, ~8s timeout). Never invent `http_status`. Non-URL claims → `verdict: unaudited`. On live **404**, attempt an injectable **search → GET replacement** (`verdict: moved` if 2xx). Network errors → `blocked` with `http_status: null`.
 - **Off-golden brief/compare:** `mode=sample`, fixture-set anchors labeled sample-only, **not charged**.
 - **Optional live brief:** `LIVE_RESEARCH=1` → `research_brief` with `depth=quick` may attempt DuckDuckGo HTML snippets; falls back to sample on failure. Snippet-only → `billable=false`.
 
 ## Metering + prepaid credits (path C)
 
-Charge gate unchanged (`src/usage.ts` `applyChargeGate`):
+Charge gate (`src/usage.ts` `applyChargeGate`):
 
-1. **Golden-matched** (`meta.mode=golden`, `billable=true`), or
-2. **Live-fetched and quality-bar-passing** (`meta.mode=live`, `billable=true`)
+1. **Golden-matched at authored depth** (`meta.mode=golden`, `billable=true`). Brief goldens are authored for **`standard`**; caller `quick`/`deep` on the same frozen body → `billable=false` (price≠work gap).
+2. **Live-fetched and quality-bar-passing** (`meta.mode=live`, `billable=true`). Lookup bar: ask-aligned excerpt **and** publisher/date (80 chars alone is not enough).
 
-Otherwise `charge_usd: 0`, `billable: false` (sample / quality-fail / snippet) — **no ledger debit**.
+Otherwise `charge_usd: 0`, `billable: false` (sample / quality-fail / snippet / depth mismatch) — **no ledger debit**.
+
+**Precheck / soft-reserve:** full SKU credit assert runs only when the path *may* be billable (golden at matching depth, compare golden, lookup golden or URL). Known non-billable paths soft-reserve **0**.
 
 **Stripe Checkout** sells credit packs ($10 / $25 / $50). Webhook `checkout.session.completed` / `async_payment_succeeded` is the **sole** fulfill source (not `payment_intent.succeeded`). Ledger lives in SQLite (`DATABASE_URL=file:./data/ledger.sqlite`) via **sql.js** (pure JS; `better-sqlite3` native build unavailable on the Node 20 alpha box).
 

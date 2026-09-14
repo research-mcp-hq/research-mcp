@@ -8,6 +8,7 @@ import type { Request, Response } from "express";
 import type Stripe from "stripe";
 import { setLedgerDbForTests, LedgerDb } from "../src/billing/db.js";
 import {
+  assertSufficientCredits,
   centsForSku,
   debitIfBillable,
   getBalanceCents,
@@ -399,6 +400,69 @@ await test("payment_intent.succeeded is ignored by webhook handler (no fulfill)"
     assert.equal(db.all(`SELECT id FROM ledger_entries`).length, 0);
   });
 });
+
+
+await test("golden depth mismatch → charge gate $0 (price≠work)", () => {
+  const deepMeta = { mode: "golden" as const, billable: false };
+  const stdMeta = { mode: "golden" as const, billable: true };
+  const deep = applyChargeGate("research_brief", "deep", deepMeta);
+  const std = applyChargeGate("research_brief", "standard", stdMeta);
+  assert.equal(deep.billable, false);
+  assert.equal(deep.charge_usd, 0);
+  assert.equal(std.billable, true);
+  assert.equal(std.charge_usd, 0.6);
+});
+
+await test("soft-reserve: non-billable debit leaves balance unchanged", async () => {
+  await withDb(async (db) => {
+    const customerId = upsertCustomer(db, { email: "soft@reserve" });
+    grantPackCredits(db, {
+      customerId,
+      creditsCents: 50,
+      stripeEventId: "evt_soft",
+      checkoutSessionId: "cs_soft",
+    });
+    // Sample / quality-fail path: soft-reserve 0, no debit
+    const gate = applyChargeGate("research_brief", "deep", {
+      mode: "golden",
+      billable: false,
+    });
+    assert.equal(gate.billable, false);
+    const result = debitIfBillable(db, {
+      customerId,
+      billable: gate.billable,
+      chargeUsd: gate.charge_usd,
+      usageRequestId: "req_soft",
+      tool: "research_brief",
+      depth: "deep",
+    });
+    assert.equal(result.debited, false);
+    assert.equal(getBalanceCents(db, customerId), 50);
+  });
+});
+
+await test("assertSufficientCredits still required only for billable SKU path", async () => {
+  await withDb(async (db) => {
+    const customerId = upsertCustomer(db, { email: "pre@check" });
+    grantPackCredits(db, {
+      customerId,
+      creditsCents: 10,
+      stripeEventId: "evt_pre",
+      checkoutSessionId: "cs_pre",
+    });
+    // Full SKU deep (150¢) with only 10¢ → throws
+    assert.throws(
+      () => assertSufficientCredits(db, customerId, "research_brief", "deep"),
+      (err: unknown) => err instanceof InsufficientCreditsError,
+    );
+    // Lite lookup (25¢) also throws with 10¢
+    assert.throws(
+      () => assertSufficientCredits(db, customerId, "source_lookup"),
+      (err: unknown) => err instanceof InsufficientCreditsError,
+    );
+  });
+});
+
 
 
 process.stdout.write(`\nbilling tests: ${passed} passed, ${failed} failed\n`);
