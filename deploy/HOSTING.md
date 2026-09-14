@@ -49,3 +49,12 @@ Env:
 - Draft CI + `deploy/fly.toml` in-repo
 - Install Docker on the box and verify image build when privileges allow
 - Wire Actions once GitHub access exists (no cloud spend)
+
+
+## CI push note (2026-09-14)
+
+`.github/workflows/ci.yml` is ready on the box but **cannot be pushed** with the current PAT: GitHub rejects workflow file updates without the `workflow` scope. Once a token (or GitHub App) with `workflow` is available, commit and push that file.
+
+## Docker on the shared box
+
+If `docker` CLI / daemon is unavailable here, **do not block deploy** — build the image on **GitHub Actions** (CI job) and/or **Fly builders** (`fly deploy` builds remotely). Local container verify is optional.
