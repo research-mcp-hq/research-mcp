@@ -16,7 +16,7 @@ import { LedgerUsageLogger, StdoutUsageLogger } from "./usage.js";
 import { VERSION } from "./version.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
-const HOST = process.env.HOST ?? "0.0.0.0";
+const HOST = process.env.HOST ?? (process.env.FLY_APP_NAME ? "::" : "0.0.0.0");
 
 const usage =
   process.env.DATABASE_URL?.trim()
@@ -81,18 +81,30 @@ async function main(): Promise<void> {
   );
 
   app.use(express.json());
-  app.use(
-    hostHeaderValidation(["localhost", "127.0.0.1", "0.0.0.0", "[::1]"]),
-  );
+
+  // Health before host-header guard so Fly/proxy probes always work.
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok", version: VERSION });
+  });
+
+  const allowedHosts = [
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+    "[::1]",
+    ...(process.env.ALLOWED_HOSTS?.split(",").map((h) => h.trim()).filter(Boolean) ?? []),
+  ];
+  const flyApp = process.env.FLY_APP_NAME?.trim();
+  if (flyApp) {
+    allowedHosts.push(`${flyApp}.fly.dev`);
+  }
+
+  app.use(hostHeaderValidation(allowedHosts));
 
   function attachRequestId(req: Request, _res: Response, next: NextFunction): void {
     req.requestId = (req.header("x-request-id") || randomUUID()).trim();
     next();
   }
-
-  app.get("/health", (_req, res) => {
-    res.json({ status: "ok", version: VERSION });
-  });
 
   app.get("/billing/success", (req, res) => {
     const sessionId =

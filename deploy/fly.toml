@@ -3,14 +3,14 @@
 # Docs: https://fly.io/docs/reference/configuration/
 # Full steps: deploy/FLY_DEPLOY.md
 
-app = "research-mcp"  # <-- replace with <APP_NAME> if different
+app = "research-mcp-mhh"
 primary_region = "iad"
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = "../Dockerfile"
 
 [env]
-  HOST = "0.0.0.0"
+  HOST = "::"  # dual-stack; Fly proxy is IPv6
   PORT = "3000"
   NODE_ENV = "production"
   # LIVE_RESEARCH set via `fly secrets` if needed
