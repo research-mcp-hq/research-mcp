@@ -19,8 +19,8 @@ export function defaultMockPages(query = "the research topic"): ExtractedPage[] 
   const body = (lead: string) =>
     `${lead} Query context: ${q}. Published for the 2026 research set. ` + FILLER.repeat(6);
 
-  // URLs use primary allowlist hosts so density scaffolding can pass under the
-  // tightened classifySourceType heuristic (extractive still never bills).
+  // URLs use primary allowlist hosts so density + quote gate can pass under the
+  // tightened classifySourceType heuristic (quotes taken from page sentences).
   return [
     {
       url: "https://modelcontextprotocol.io/specification/2026-03-15",

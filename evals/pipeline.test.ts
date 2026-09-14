@@ -1,6 +1,7 @@
 /**
  * Live brief pipeline tests — MockProvider only, no network, no vendor keys.
  * Run: npm run test:pipeline
+ * P2: quote gate — billable only when density OK && quotes verify against pages.
  */
 import assert from "node:assert/strict";
 import { applyChargeGate } from "../src/usage.js";
@@ -13,8 +14,17 @@ import { briefBarPassing, briefDensityOk } from "../src/research/bar.js";
 import { DEFAULT_COGS, loadCogsConfig, type CogsConfig } from "../src/research/cogs.js";
 import { defaultMockPages, MockProvider } from "../src/research/providers/mock.js";
 import { LocalHttpProvider } from "../src/research/providers/local.js";
-import { classifySourceType } from "../src/research/synthesize.js";
-import type { ExtractedPage } from "../src/research/providers/types.js";
+import { classifySourceType, synthesizeBrief } from "../src/research/synthesize.js";
+import {
+  normalizeForQuoteMatch,
+  quoteInPages,
+  verifyQuotes,
+} from "../src/research/quote-gate.js";
+import type {
+  ExtractedPage,
+  SynthesizeInput,
+  SynthesizeOutput,
+} from "../src/research/providers/types.js";
 
 const OFF_GOLDEN = "Purple widgets Q3 2026 decision brief for a paid research SKU";
 const GOLDEN_Q =
@@ -48,7 +58,7 @@ function overCapCogs(): CogsConfig {
   };
 }
 
-await test("mock extractive live: density scaffolding passes but billable===false", async () => {
+await test("mock quoted synth: quotes match pages → billable true when density ok", async () => {
   const origFetch = globalThis.fetch;
   let fetchCalled = false;
   globalThis.fetch = (async () => {
@@ -62,14 +72,19 @@ await test("mock extractive live: density scaffolding passes but billable===fals
       { provider, cogs: loadCogsConfig() },
     );
     assert.equal(r.meta?.mode, "live");
-    // MUST 1: extractive v0 never bills customers
-    assert.equal(r.meta?.billable, false);
-    assert.equal(r.confidence, "medium");
+    assert.equal(r.meta?.billable, true);
     assert.ok(briefDensityOk(r.sources, "standard"));
     assert.ok(briefBarPassing(r.sources, "standard", r.confidence));
-    const body = r.body as { density_confidence_ok?: boolean; synthesizer?: string };
+    const body = r.body as {
+      density_confidence_ok?: boolean;
+      quotes_verified?: boolean;
+      synthesizer?: string;
+      claims?: unknown[];
+    };
     assert.equal(body.density_confidence_ok, true);
-    assert.equal(body.synthesizer, "local-extractive-v0");
+    assert.equal(body.quotes_verified, true);
+    assert.equal(body.synthesizer, "local-quoted-v1");
+    assert.ok(Array.isArray(body.claims) && body.claims.length >= 2);
     const uniq = new Set(r.sources.map((s) => s.url));
     assert.ok(uniq.size >= 4, `unique sources ${uniq.size}`);
     const primaries = r.sources.filter((s) => s.type === "primary");
@@ -78,20 +93,105 @@ await test("mock extractive live: density scaffolding passes but billable===fals
     for (const s of r.sources) {
       assert.ok(allowed.has(s.url), `invented url ${s.url}`);
     }
-    assert.ok(
-      r.gaps.some((g) => /extractive|quote gate|not decision-ready/i.test(g)),
-    );
     assert.equal(provider.id, "mock");
     assert.ok(provider.searchCalls >= 1);
     assert.ok(provider.extractCalls >= 4);
     assert.equal(fetchCalled, false);
     const gate = applyChargeGate("research_brief", "standard", r.meta);
-    assert.equal(gate.billable, false);
-    assert.equal(gate.charge_usd, 0);
+    assert.equal(gate.billable, true);
+    assert.equal(gate.charge_usd, 0.6);
     assert.equal(gate.mode, "live");
   } finally {
     globalThis.fetch = origFetch;
   }
+});
+
+await test("claim with quote not in pages → billable false", async () => {
+  const pages = defaultMockPages(OFF_GOLDEN);
+  const provider = new MockProvider({
+    pages,
+    // custom synthesize that invents a quote not present in any page
+  });
+  // Monkey-patch synthesize on the instance
+  (provider as MockProvider & { synthesize: (i: SynthesizeInput) => Promise<SynthesizeOutput> }).synthesize =
+    async (input) => {
+      const base = synthesizeBrief(input);
+      return {
+        ...base,
+        // Replace claims with one that has a fabricated quote
+        claims: [
+          {
+            claim: "Invented assertion about purple widgets revenue",
+            quote:
+              "Purple widgets generated exactly nine hundred million dollars in Q3 2099.",
+            source_url: pages[0]!.url,
+          },
+        ],
+        body: {
+          ...(base.body as object),
+          synthesizer: "custom-non-extractive",
+          claims: [
+            {
+              claim: "Invented assertion about purple widgets revenue",
+              quote:
+                "Purple widgets generated exactly nine hundred million dollars in Q3 2099.",
+              source_url: pages[0]!.url,
+            },
+          ],
+        },
+      };
+    };
+
+  const r = await runResearchBrief(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider },
+  );
+  assert.equal(r.meta?.mode, "live");
+  assert.equal(r.meta?.billable, false);
+  assert.equal(r.confidence, "unknown");
+  const body = r.body as { quotes_verified?: boolean; synthesizer?: string };
+  assert.equal(body.quotes_verified, false);
+  // Label is non-extractive — still must fail closed without quote∈page
+  assert.equal(body.synthesizer, "custom-non-extractive");
+  assert.ok(r.gaps.some((g) => /quote gate|not found in extracted/i.test(g)));
+  const gate = applyChargeGate("research_brief", "standard", r.meta);
+  assert.equal(gate.billable, false);
+  assert.equal(gate.charge_usd, 0);
+});
+
+await test("custom synth without claims (non-extractive label) → fail closed $0", async () => {
+  const pages = defaultMockPages(OFF_GOLDEN);
+  const provider = new MockProvider({ pages });
+  (provider as MockProvider & { synthesize: (i: SynthesizeInput) => Promise<SynthesizeOutput> }).synthesize =
+    async (input) => {
+      const base = synthesizeBrief(input);
+      return {
+        ...base,
+        claims: [], // no quotes attached
+        confidence: "high",
+        body: {
+          ...(base.body as object),
+          synthesizer: "fancy-llm-looking-v9",
+          claims: [],
+        },
+      };
+    };
+
+  const r = await runResearchBrief(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider },
+  );
+  assert.equal(r.meta?.mode, "live");
+  // MUST: !isExtractive alone must NOT unlock billing
+  assert.equal(r.meta?.billable, false);
+  assert.equal(r.confidence, "unknown");
+  const body = r.body as { quotes_verified?: boolean; synthesizer?: string };
+  assert.equal(body.quotes_verified, false);
+  assert.equal(body.synthesizer, "fancy-llm-looking-v9");
+  assert.ok(r.gaps.some((g) => /quote gate|no load-bearing/i.test(g)));
+  const gate = applyChargeGate("research_brief", "standard", r.meta);
+  assert.equal(gate.billable, false);
+  assert.equal(gate.charge_usd, 0);
 });
 
 await test("COGS over-cap → not billable, no provider calls", async () => {
@@ -170,7 +270,7 @@ await test("thin extract fails density → live but not billable", async () => {
   assert.equal(r.meta?.mode, "live");
   assert.equal(r.meta?.billable, false);
   assert.ok(
-    r.gaps.some((g) => /density|not charged|billable=false/i.test(g)),
+    r.gaps.some((g) => /density|not charged|billable=false|quote gate/i.test(g)),
   );
   const gate = applyChargeGate("research_brief", "standard", r.meta);
   assert.equal(gate.billable, false);
@@ -202,35 +302,56 @@ await test("no provider + LIVE_RESEARCH off → sample (off-golden standard)", a
   }
 });
 
-await test("quick mock extractive: density scaffolding ok but not billable", async () => {
+await test("quick mock quoted: density+quotes → billable", async () => {
   const provider = new MockProvider();
   const r = await runResearchBrief(
     { query: OFF_GOLDEN, depth: "quick" },
     { provider },
   );
   assert.equal(r.meta?.mode, "live");
-  assert.equal(r.meta?.billable, false);
+  assert.equal(r.meta?.billable, true);
   assert.ok(briefDensityOk(r.sources, "quick"));
   assert.ok(briefBarPassing(r.sources, "quick", r.confidence));
+  const body = r.body as { quotes_verified?: boolean };
+  assert.equal(body.quotes_verified, true);
   const gate = applyChargeGate("research_brief", "quick", r.meta);
-  assert.equal(gate.billable, false);
-  assert.equal(gate.charge_usd, 0);
+  assert.equal(gate.billable, true);
+  assert.equal(gate.charge_usd, 0.25);
 });
 
-await test("density helper can pass without flipping billable (scaffold only)", () => {
+await test("quote helpers: normalize + substring match", () => {
   const pages = defaultMockPages(OFF_GOLDEN);
-  // Simulate sources via classifySourceType on allowlisted mock URLs
-  const sources = pages.map((p) => ({
-    title: p.title,
-    url: p.url,
-    publisher: p.publisher ?? "x",
-    accessed: "2026-09-12",
-    type: classifySourceType(p.url),
-    supports: "test",
-  }));
-  assert.ok(briefDensityOk(sources, "standard"));
-  assert.ok(briefBarPassing(sources, "standard", "medium"));
-  // Pipeline is the only place that sets meta.billable; helper does not bill.
+  const sentence =
+    "Official specification published 2026-03-15. Defines roles, transports, and versioning.";
+  assert.ok(quoteInPages(sentence, pages));
+  assert.ok(
+    quoteInPages(
+      "  Official   SPECIFICATION published 2026-03-15. Defines roles, transports, and versioning. ",
+      pages,
+    ),
+  );
+  assert.equal(
+    quoteInPages("This quote appears nowhere in any mock page text at all forever.", pages),
+    false,
+  );
+  assert.equal(normalizeForQuoteMatch("  A  B\nC  "), "a b c");
+  const v = verifyQuotes(
+    [{ claim: "x", quote: sentence, source_url: pages[0]!.url }],
+    pages,
+  );
+  assert.equal(v.ok, true);
+  const miss = verifyQuotes(
+    [
+      {
+        claim: "bad",
+        quote: "Completely fabricated sentence that is long enough to gate but absent.",
+        source_url: pages[0]!.url,
+      },
+    ],
+    pages,
+  );
+  assert.equal(miss.ok, false);
+  assert.equal(miss.confidenceFloor, "unknown");
 });
 
 await test("classifySourceType: allowlist primaries; arbitrary github/docs secondary", () => {
@@ -307,17 +428,29 @@ await test("runLiveBriefPipeline COGS abort does not search", async () => {
   assert.equal(provider.searchCalls, 0);
 });
 
-await test("LIVE_RESEARCH=1 extractive: soft-reserve 0 (not precheck-eligible)", () => {
+await test("LIVE_RESEARCH=1: soft-reserve may bill (quote gate path)", () => {
   const prev = process.env.LIVE_RESEARCH;
   process.env.LIVE_RESEARCH = "1";
   try {
-    // Extractive never bills → do not demand full SKU soft-reserve/precheck
-    assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "standard"), false);
-    assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "quick"), false);
+    // Path may be billable after density+quote verify → soft-reserve full SKU
+    assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "standard"), true);
+    assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "quick"), true);
     assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "deep"), false);
     // Goldens still bill at authored depth
     assert.equal(briefPathMayBeBillable(GOLDEN_Q, "standard"), true);
     assert.equal(briefPathMayBeBillable(GOLDEN_Q, "deep"), false);
+  } finally {
+    if (prev === undefined) delete process.env.LIVE_RESEARCH;
+    else process.env.LIVE_RESEARCH = prev;
+  }
+});
+
+await test("LIVE_RESEARCH off: soft-reserve 0 for off-golden", () => {
+  const prev = process.env.LIVE_RESEARCH;
+  delete process.env.LIVE_RESEARCH;
+  try {
+    assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "standard"), false);
+    assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "quick"), false);
   } finally {
     if (prev === undefined) delete process.env.LIVE_RESEARCH;
     else process.env.LIVE_RESEARCH = prev;

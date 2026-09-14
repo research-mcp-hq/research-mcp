@@ -1,12 +1,18 @@
 /**
- * Local deterministic synthesizer (v0). No LLM, no MCP Sampling.
- * Restates only extracted pages — never invents URLs, quotes, dates, or named sources.
+ * Local deterministic synthesizer (quoted v1). No LLM, no MCP Sampling.
+ * Emits { claim, quote, source_url }[] where each quote is a verbatim sentence
+ * from extracted page text — required by the P2 quote gate for live billing.
  */
 
 import { AS_OF, type Confidence, type Depth, type Source, type SourceType } from "../types.js";
 import { extractPageDate } from "./samples.js";
 import type { ExtractedPage, SynthesizeInput, SynthesizeOutput } from "./providers/types.js";
 import { briefDensityOk } from "./bar.js";
+import {
+  extractSentences,
+  type ClaimQuote,
+  MIN_QUOTE_CHARS,
+} from "./quote-gate.js";
 
 function hostname(u: string): string {
   try {
@@ -109,20 +115,47 @@ export function pagesToSources(pages: ExtractedPage[]): Source[] {
   return sources;
 }
 
+/**
+ * Build load-bearing claims from extracted pages: one claim per usable page,
+ * quote = first substantial verbatim sentence from that page.
+ */
+export function buildClaimsFromPages(pages: ExtractedPage[]): ClaimQuote[] {
+  const claims: ClaimQuote[] = [];
+  const seenQuotes = new Set<string>();
+
+  for (const page of pages) {
+    if (!page.url || !page.text?.trim()) continue;
+    const sentences = extractSentences(page.text, MIN_QUOTE_CHARS);
+    const quote = sentences[0];
+    if (!quote) continue;
+    const key = quote.toLowerCase();
+    if (seenQuotes.has(key)) continue;
+    seenQuotes.add(key);
+
+    const title = page.title || hostname(page.url);
+    const claim = `From ${title}: ${excerpt(quote, 160)}`;
+    claims.push({ claim, quote, source_url: page.url });
+  }
+  return claims;
+}
+
 export function synthesizeBrief(input: SynthesizeInput): SynthesizeOutput {
   const { query, depth, pages } = input;
   const usable = pages.filter((p) => p.text.trim().length > 0 && p.url);
   const sources = pagesToSources(usable);
   const density = briefDensityOk(sources, depth);
   const primaries = sources.filter((s) => s.type === "primary").length;
+  const claims = buildClaimsFromPages(usable);
 
   let confidence: Confidence;
-  if (usable.length === 0) {
+  if (usable.length === 0 || claims.length === 0) {
     confidence = "unknown";
   } else if (!density) {
     confidence = "low";
+  } else if (primaries >= 2 && claims.length >= 2) {
+    // Quotes attached from fetched pages; density met → medium (high reserved for richer synth).
+    confidence = "medium";
   } else {
-    // Extractive v0 — medium even with several primaries (quote-verify is P2).
     confidence = "medium";
   }
 
@@ -134,14 +167,18 @@ export function synthesizeBrief(input: SynthesizeInput): SynthesizeOutput {
   const tldr =
     usable.length === 0
       ? `Live ${depth} brief for “${query.slice(0, 120)}” extracted no usable page text.`
-      : `Live ${depth} brief for “${query.slice(0, 120)}” from ${usable.length} extracted page(s)` +
-        `${titles.length ? ` (${titles.join("; ")})` : ""}. ` +
-        `Claims below are restated from fetched pages only; v0 synthesizer is extractive.`;
+      : claims.length === 0
+        ? `Live ${depth} brief for “${query.slice(0, 120)}” from ${usable.length} page(s) but no quotable sentences (≥${MIN_QUOTE_CHARS} chars).`
+        : `Live ${depth} brief for “${query.slice(0, 120)}” from ${usable.length} extracted page(s)` +
+          `${titles.length ? ` (${titles.join("; ")})` : ""}. ` +
+          `${claims.length} load-bearing claim(s) cited with verbatim quotes from fetched pages.`;
 
-  const gaps: string[] = [
-    // TODO(P2 quote gate): verified quotes required before live briefs can bill.
-    "v0 synthesizer is extractive collage (not decision-ready). Quote gate required for billing — extractive live output never bills customers (billable=false).",
-  ];
+  const gaps: string[] = [];
+  if (claims.length === 0) {
+    gaps.push(
+      "No load-bearing claims with quotes could be attached from extracted text — quote gate will fail (billable=false).",
+    );
+  }
   if (!density) {
     gaps.push(
       `Density bar not met for depth=${depth} (unique=${new Set(sources.map((s) => s.url)).size}, primaries=${primaries}).`,
@@ -153,14 +190,16 @@ export function synthesizeBrief(input: SynthesizeInput): SynthesizeOutput {
 
   const body = {
     mode: "live" as const,
-    synthesizer: "local-extractive-v0",
+    synthesizer: "local-quoted-v1",
+    claims,
     sections: {
-      what: usable[0] ? excerpt(usable[0].text, 280) : null,
+      what: claims[0] ? claims[0].claim : usable[0] ? excerpt(usable[0].text, 280) : null,
       status: dates.length
         ? `Page dates observed on extracted sources: ${dates.join(", ")}.`
         : "No page dates detected on extracted sources.",
       implications:
         "Prefer the primaries listed in sources over secondary roundups. Re-fetch before treating dates as still current.",
+      bullets: claims.map((c) => c.claim),
     },
     extracted: usable.map((p) => ({
       title: p.title,
@@ -171,7 +210,7 @@ export function synthesizeBrief(input: SynthesizeInput): SynthesizeOutput {
     })),
   };
 
-  return { tldr, body, confidence, sources, gaps };
+  return { tldr, body, confidence, sources, gaps, claims };
 }
 
 export function synthesizeForDepth(

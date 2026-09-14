@@ -79,5 +79,11 @@ export {
 } from "./samples.js";
 
 export { runLiveBriefPipeline, briefBarPassing, briefDensityOk } from "./pipeline.js";
+export {
+  verifyQuotes,
+  quoteInPages,
+  normalizeForQuoteMatch,
+  type ClaimQuote,
+} from "./quote-gate.js";
 export { MockProvider, defaultMockPages, defaultResearchProvider } from "./providers/index.js";
 export { loadCogsConfig, projectCogsCents, type CogsConfig } from "./cogs.js";

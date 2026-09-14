@@ -44,10 +44,13 @@ Live path (manual):
 
 ```bash
 LIVE_RESEARCH=1 API_KEYS=dev-key-1 npm start
-# research_brief depth=quick|standard → search→extract→synthesize (LocalHttpProvider)
-# extractive v0 never bills; density scaffolding still runs; COGS over-cap aborts
+# research_brief depth=quick|standard → search→extract→synthesize→quote gate (LocalHttpProvider)
+# billable only when density OK AND every load-bearing claim has quote ∈ page text
+# missing quotes → billable=false / $0; COGS over-cap aborts before provider calls
 # PARALLEL_API_KEY / EXA_API_KEY are unused placeholders
 ```
+
+**Quote gate:** after synthesize, each claim's `quote` must appear (whitespace/case-normalized) in some extracted page. Weakest miss sets confidence `unknown` and forces `$0`. Soft-reserve demands full SKU when `LIVE_RESEARCH=1` for quick/standard (path may bill).
 
 COGS (defaults under SKU list prices): `COGS_CAP_CENTS_QUICK=10`, `STANDARD=25`, `DEEP=50` plus `COGS_SEARCH_UNIT_CENTS` / `COGS_EXTRACT_UNIT_CENTS`. Over-cap aborts fail-closed (`billable=false`).
 
@@ -72,9 +75,9 @@ Prepaid credit SKU (encoded in usage logger / docs):
 | standard | $0.60 |
 | deep | $1.50 |
 
-**Charge gate:** charge only golden-matched or live-fetched + quality-bar-passing.  
-Quality bar fail = no charge. Sample/demo path = no charge (`estimatedCostUsd: 0`, `charge_usd: 0`, `billable: false`).  
-Live brief quality-fail or COGS abort = no charge.
+**Charge gate:** charge only golden-matched or live-fetched + density + **quote gate** pass.  
+Quality/quote fail = no charge. Sample/demo path = no charge (`estimatedCostUsd: 0`, `charge_usd: 0`, `billable: false`).  
+Live brief quality-fail, quote-fail, or COGS abort = no charge.
 
 Metering: stdout JSON + SQLite ledger debit for customer keys (path C prepaid packs).
 

@@ -5,9 +5,9 @@
  * Charge gate:
  * - golden-matched at authored depth (typically standard) → billable (SKU estimate)
  * - depth-mismatched golden (same frozen body, price≠work) → no charge
- * - live-fetched AND quality-bar-passing → billable
+ * - live-fetched AND density+quote-gate-passing → billable
  * - sample/demo path → estimatedCostUsd 0, billable false
- * - quality bar fail / snippet-only live → no charge
+ * - quality bar fail / quote-fail / COGS abort → no charge
  */
 
 import type { ResearchMeta } from "./types.js";

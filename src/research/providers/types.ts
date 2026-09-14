@@ -4,6 +4,9 @@
  */
 
 import type { Confidence, Depth, Source } from "../../types.js";
+import type { ClaimQuote } from "../quote-gate.js";
+
+export type { ClaimQuote };
 
 export interface ExtractedPage {
   url: string;
@@ -25,6 +28,11 @@ export interface SynthesizeOutput {
   confidence: Confidence;
   sources: Source[];
   gaps: string[];
+  /**
+   * Load-bearing claims with quotes for the quote gate.
+   * Required for live billing — empty/missing → fail closed.
+   */
+  claims?: ClaimQuote[];
 }
 
 export interface ResearchProvider {
@@ -34,6 +42,6 @@ export interface ResearchProvider {
   search(query: string): Promise<string[]>;
   /** Fetch and extract a single page. Throw on failure. */
   fetchExtract(url: string): Promise<ExtractedPage>;
-  /** Optional provider-side synthesizer. v0 uses the local deterministic synthesizer. */
+  /** Optional provider-side synthesizer. Default: local quoted synthesizer. */
   synthesize?(input: SynthesizeInput): Promise<SynthesizeOutput>;
 }

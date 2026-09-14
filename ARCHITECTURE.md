@@ -42,20 +42,21 @@ Annotations (hints only — hosts must not treat as a sandbox):
 - **Default:** high-quality **sample** responses. Golden fixtures in `src/research/goldens.ts` match `quality-bars.md` + `niche-goldens.md`.
 - **Off-golden `source_lookup`:** async real GET for `https?://` URLs (injectable `fetch`, ~8s timeout). Never invent `http_status`. Non-URL claims → `verdict: unaudited`. On live **404**, attempt an injectable **search → GET replacement** (`verdict: moved` if 2xx). Network errors → `blocked` with `http_status: null`.
 - **Off-golden compare:** `mode=sample`, fixture-set anchors labeled sample-only, **not charged**.
-- **Live `research_brief` (phase 1):** off-golden `depth=quick|standard` runs **search → fetch/extract N pages (capped) → local extractive synthesizer** via an injectable `ResearchProvider`. Tests use `MockProvider` (no network). Production with `LIVE_RESEARCH=1` uses `LocalHttpProvider` (DDG HTML URLs + HTTP extract). **Deep** stays sample. Pipeline failure → sample. `PARALLEL_API_KEY` / `EXA_API_KEY` are placeholders and **unused**.
+- **Live `research_brief` (phase 1+2):** off-golden `depth=quick|standard` runs **search → fetch/extract N pages (capped) → synthesize → quote gate** via an injectable `ResearchProvider`. Local synthesizer (`local-quoted-v1`) emits `{ claim, quote, source_url }[]` with verbatim sentences from page text. Tests use `MockProvider` (no network). Production with `LIVE_RESEARCH=1` uses `LocalHttpProvider` (DDG HTML URLs + HTTP extract). **Deep** stays sample. Pipeline failure → sample. `PARALLEL_API_KEY` / `EXA_API_KEY` are placeholders and **unused**.
 - **COGS caps:** `COGS_CAP_CENTS_QUICK/STANDARD/DEEP` plus per-request unit costs. If projected spend would exceed the cap, abort fail-closed (`billable=false`, clear gap, no provider calls).
-- **Live brief charge gate:** extractive v0 **never** sets `billable=true` (collage / not decision-ready; quote gate P2 required). Density+confidence scaffolding is still computed for eval. Quality-fail and COGS-abort stay `billable=false`.
+- **Quote gate (P2):** every load-bearing claim must have a quote that is a (lightly normalized) substring of some extracted page. Fail → `billable=false`, confidence `unknown`/`low`, gaps explain missing quotes. **Do not** unlock billing via synthesizer label alone (`!isExtractive` is insufficient).
+- **Live brief charge gate:** `billable = densityConfidenceOk && quotesVerified`. Quality-fail, quote-fail, and COGS-abort stay `billable=false`.
 
 ## Metering + prepaid credits (path C)
 
 Charge gate (`src/usage.ts` `applyChargeGate`):
 
 1. **Golden-matched at authored depth** (`meta.mode=golden`, `billable=true`). Brief goldens are authored for **`standard`**; caller `quick`/`deep` on the same frozen body → `billable=false` (price≠work gap).
-2. **Live-fetched and quality-bar-passing** (`meta.mode=live`, `billable=true`). Lookup bar: ask-aligned excerpt **and** publisher/date (80 chars alone is not enough). **Live extractive briefs do not bill yet** (await quote gate).
+2. **Live-fetched and quality-bar-passing** (`meta.mode=live`, `billable=true`). Brief: density+primary allowlist **and** quote gate pass. Lookup bar: ask-aligned excerpt **and** publisher/date (80 chars alone is not enough).
 
-Otherwise `charge_usd: 0`, `billable: false` (sample / quality-fail / COGS abort / depth mismatch) — **no ledger debit**.
+Otherwise `charge_usd: 0`, `billable: false` (sample / quality-fail / quote-fail / COGS abort / depth mismatch) — **no ledger debit**.
 
-**Precheck / soft-reserve:** full SKU credit assert runs only when the path *may* be billable (golden at matching depth, compare golden, lookup golden or URL). Live extractive brief path soft-reserves **0** (not billable until quote gate). Known non-billable paths soft-reserve **0**.
+**Precheck / soft-reserve:** full SKU credit assert runs only when the path *may* be billable (golden at matching depth, `LIVE_RESEARCH=1` quick/standard, compare golden, lookup golden or URL). Known non-billable paths soft-reserve **0**.
 
 **Stripe Checkout** sells credit packs ($10 / $25 / $50). Webhook `checkout.session.completed` / `async_payment_succeeded` is the **sole** fulfill source (not `payment_intent.succeeded`). Ledger lives in SQLite (`DATABASE_URL=file:./data/ledger.sqlite`) via **sql.js** (pure JS; `better-sqlite3` native build unavailable on the Node 20 alpha box).
 
@@ -69,4 +70,4 @@ Routes: `POST /webhooks/stripe` (raw body), `POST /billing/checkout`, `GET /bill
 - `npm run eval:off` — off-golden cases (mocked fetch): no invented 404/`found`, 403→blocked, sample billable=false.
 - `npm run eval:all` — goldens + off-golden + pipeline.
 - `npm run test:billing` — ledger/webhook/debit invariants (mocked Stripe; no live API).
-- `npm run test:pipeline` — mock search→extract→synthesize; COGS over-cap fail-closed; no vendor calls.
+- `npm run test:pipeline` — mock search→extract→synthesize→quote gate; billable only on verified quotes; COGS over-cap fail-closed; no vendor calls.
