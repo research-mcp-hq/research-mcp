@@ -31,6 +31,7 @@ interface RequestStore {
   keyId: string;
   customerId?: string;
   breakGlass?: boolean;
+  headers?: Record<string, string | string[] | undefined>;
 }
 
 const requestStore = new AsyncLocalStorage<RequestStore>();
@@ -45,6 +46,7 @@ const mcpHandler = createMcpHandler(() => {
     usage,
     customerId: store?.customerId,
     breakGlass: store?.breakGlass,
+    headers: store?.headers,
   });
 });
 
@@ -176,6 +178,16 @@ async function main(): Promise<void> {
       keyId: req.authContext?.keyId ?? "unknown",
       customerId: req.authContext?.customerId,
       breakGlass: req.authContext?.breakGlass,
+      // Subset for host detection only — never log Authorization / raw keys
+      headers: {
+        "user-agent": req.header("user-agent") ?? undefined,
+        "x-mcp-client": req.header("x-mcp-client") ?? undefined,
+        "x-mcp-client-name": req.header("x-mcp-client-name") ?? undefined,
+        "mcp-client-name": req.header("mcp-client-name") ?? undefined,
+        "x-client-name": req.header("x-client-name") ?? undefined,
+        "x-client-id": req.header("x-client-id") ?? undefined,
+        "x-smithery-client": req.header("x-smithery-client") ?? undefined,
+      },
     };
     requestStore.run(store, () => {
       void node(req, res, req.body);

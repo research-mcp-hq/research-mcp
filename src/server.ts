@@ -5,6 +5,7 @@ import {
   InsufficientCreditsError,
   type UsageLogger,
 } from "./usage.js";
+import { buildDemandEvent, logDemandEvent } from "./demand.js";
 import { getLedgerDb } from "./billing/db.js";
 import { assertSufficientCredits } from "./billing/ledger.js";
 import {
@@ -47,6 +48,8 @@ export interface ToolCallContext {
   usage: UsageLogger;
   customerId?: string;
   breakGlass?: boolean;
+  /** Best-effort client headers for host detection (no secrets logged). */
+  headers?: Record<string, string | string[] | undefined>;
 }
 
 function jsonResult(data: unknown, meta?: Record<string, unknown>) {
@@ -161,6 +164,65 @@ function logUsage(
 }
 
 /**
+ * Emit privacy-safe demand row after charge gate / usage log.
+ * Failures are swallowed — never block the tool response.
+ */
+function logDemandAfterUsage(
+  ctx: ToolCallContext,
+  tool: string,
+  depth: string | undefined,
+  est: ReturnType<typeof applyChargeGate>,
+  result: Record<string, unknown>,
+  classifyText: string,
+): void {
+  try {
+    const sources = Array.isArray(result.sources)
+      ? (result.sources as import("./types.js").Source[])
+      : undefined;
+    const fail_gate =
+      result.fail_gate && typeof result.fail_gate === "object"
+        ? (result.fail_gate as { reason?: string })
+        : undefined;
+    const gaps = Array.isArray(result.gaps)
+      ? (result.gaps as string[])
+      : undefined;
+    const event = buildDemandEvent({
+      requestId: ctx.requestId,
+      tool,
+      depth,
+      classifyText,
+      headers: ctx.headers,
+      meta: result.meta as ResearchMeta | undefined,
+      billable: est.billable,
+      charge_usd: est.charge_usd,
+      keyId: ctx.keyId,
+      breakGlass: ctx.breakGlass,
+      fail_gate,
+      gaps,
+      body: result.body,
+      sources,
+      verdict: typeof result.verdict === "string" ? result.verdict : undefined,
+      http_status:
+        typeof result.http_status === "number" || result.http_status === null
+          ? (result.http_status as number | null)
+          : undefined,
+    });
+    logDemandEvent(event);
+  } catch (err) {
+    try {
+      process.stderr.write(
+        `${JSON.stringify({
+          type: "demand_log_error",
+          message: err instanceof Error ? err.message : String(err),
+        })}\n`,
+      );
+    } catch {
+      // swallow
+    }
+  }
+}
+
+/**
  * Per-request MCP server factory.
  * Default paid tools: research_brief (quick|standard) + source_lookup.
  * ENABLE_PREVIEW_TOOLS=1 parks compare_options + depth=deep as preview ($0).
@@ -233,6 +295,14 @@ export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
       }
       const debitErr = logUsage(ctx, "research_brief", depth, latencyMs, est);
       if (debitErr) return debitErr;
+      logDemandAfterUsage(
+        ctx,
+        "research_brief",
+        depth,
+        est,
+        result,
+        query,
+      );
       return jsonResult(result, {
         requestId: ctx.requestId,
         latencyMs,
@@ -289,6 +359,14 @@ export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
           est,
         );
         if (debitErr) return debitErr;
+        logDemandAfterUsage(
+          ctx,
+          "compare_options",
+          undefined,
+          est,
+          result,
+          [question, ...options, ...criteria].join(" "),
+        );
         return jsonResult(result, {
           requestId: ctx.requestId,
           latencyMs,
@@ -331,6 +409,14 @@ export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
       );
       const debitErr = logUsage(ctx, "source_lookup", undefined, latencyMs, est);
       if (debitErr) return debitErr;
+      logDemandAfterUsage(
+        ctx,
+        "source_lookup",
+        undefined,
+        est,
+        result,
+        `${claim_or_url} ${ask}`,
+      );
       return jsonResult(result, {
         requestId: ctx.requestId,
         latencyMs,

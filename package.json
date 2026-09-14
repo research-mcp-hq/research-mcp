@@ -15,7 +15,8 @@
     "eval:off": "tsx evals/score-off-golden.ts",
     "eval:all": "npm run eval && npm run eval:off && npm run test:pipeline",
     "test:billing": "tsx evals/billing.test.ts",
-    "test:pipeline": "tsx evals/pipeline.test.ts"
+    "test:pipeline": "tsx evals/pipeline.test.ts",
+    "test:demand": "tsx evals/demand.test.ts"
   },
   "keywords": [
     "mcp",

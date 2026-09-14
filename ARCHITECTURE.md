@@ -68,6 +68,17 @@ Debits (customer keys only): lite **25¢**, standard **60¢**, deep **150¢**. B
 
 Routes: `POST /webhooks/stripe` (raw body), `POST /billing/checkout`, `GET /billing/success|cancel`. No Customer Portal / Billing Credits / marketplace in v0.
 
+## Demand log (R1)
+
+Optional privacy-safe category mix (`src/demand.ts`), gated by `DEMAND_LOG=1` (default off).
+
+- After the charge gate / usage logger, emit one stdout JSON line `type:"demand"` with the same `request_id` as `type:"usage"`.
+- Fields: `ts`, `request_id`, `tool`, `depth`, `meter`, `topic_bucket`, `host`, `path`, `billable`, `outcome`, `charge_usd`, `customer_key_hash`, `break_glass` (+ optional `fail_reason_code`, `primary_count`, `unique_source_count`).
+- **No** raw `query` / `claim_or_url` / `ask` / `question` — classifier reads text in-memory then drops it.
+- `topic_bucket` priority: `mcp_security` > pricing-honesty→`other` > `mcp` > `agent_infra` > `other`.
+- `host` best-effort from `User-Agent` / `x-mcp-client*` / `x-client-*` / `x-smithery-client` (map in RUNBOOK); default `unknown`. Never infer host from query.
+- Logging failures are swallowed — never block listing or the charge gate.
+
 ## Eval
 
 - `npm run eval` — goldens on the 6-point ship rubric (no fabrication, density, confidence legal, must-include, must-not, honest gaps). Expect 10/10.
