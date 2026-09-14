@@ -1,0 +1,87 @@
+{
+  "id": "G6-lookup-not-found",
+  "tool": "source_lookup",
+  "depthBar": "lookup",
+  "mustInclude": [
+    "not_found",
+    "2026-07-28"
+  ],
+  "mustNot": [
+    "there is an official 2019 mcp spec"
+  ],
+  "allowedConfidence": [
+    "high"
+  ],
+  "sample_output": {
+    "claim_or_url": "https://modelcontextprotocol.io/specification/2019-01-01",
+    "ask": "Is there an MCP spec dated 2019-01-01?",
+    "verdict": "not_found",
+    "http_status": 404,
+    "tldr": "Not found. There is no MCP specification dated 2019-01-01 (fetch returned 404 / failure). The latest published spec observed in this research is 2026-07-28.",
+    "body": {
+      "attempted_url": "https://modelcontextprotocol.io/specification/2019-01-01",
+      "fetch_result": "404 / not found — no 2019 MCP spec document",
+      "replacement": "Use https://modelcontextprotocol.io/specification/2026-07-28 (observed latest).",
+      "search_note": "Replacement search points to post-2024 MCP specs only; do not invent a 2019 document."
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "MCP Specification 2026-07-28 (actual latest observed)",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Canonical current spec after 2019 URL miss"
+      },
+      {
+        "title": "Introducing the Model Context Protocol",
+        "url": "https://www.anthropic.com/news/model-context-protocol",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "MCP open-sourced 2024-11-25 — inconsistent with a 2019 spec"
+      }
+    ],
+    "gaps": [],
+    "as_of": "2026-09-12",
+    "meta": {
+      "mode": "golden",
+      "billable": true
+    }
+  },
+  "reference_expected": {
+    "claim_or_url": "https://modelcontextprotocol.io/specification/2019-01-01",
+    "ask": "Is there an MCP spec dated 2019-01-01?",
+    "verdict": "not_found",
+    "http_status": 404,
+    "tldr": "Not found. There is no MCP specification dated 2019-01-01 (fetch returned 404 / failure). The latest published spec observed in this research is 2026-07-28.",
+    "body": {
+      "attempted_url": "https://modelcontextprotocol.io/specification/2019-01-01",
+      "fetch_result": "404 / not found — no 2019 MCP spec document",
+      "replacement": "Use https://modelcontextprotocol.io/specification/2026-07-28 (observed latest).",
+      "search_note": "Replacement search points to post-2024 MCP specs only; do not invent a 2019 document."
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "MCP Specification 2026-07-28 (actual latest observed)",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Canonical current spec after 2019 URL miss"
+      },
+      {
+        "title": "Introducing the Model Context Protocol",
+        "url": "https://www.anthropic.com/news/model-context-protocol",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "MCP open-sourced 2024-11-25 — inconsistent with a 2019 spec"
+      }
+    ],
+    "gaps": [],
+    "as_of": "2026-09-12"
+  }
+}

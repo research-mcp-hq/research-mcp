@@ -1,0 +1,77 @@
+{
+  "id": "G7-lookup-conflicting",
+  "tool": "source_lookup",
+  "depthBar": "lookup",
+  "mustInclude": [
+    "150",
+    "a2a-protocol.org",
+    "first-party"
+  ],
+  "mustNot": [
+    "audited census confirms 150",
+    "verified census of 150"
+  ],
+  "allowedConfidence": [
+    "medium"
+  ],
+  "sample_output": {
+    "claim_or_url": "A2A is backed by over 150 organizations and runs in production across supply chains, financial services, and mobile.",
+    "ask": "Verify this claim.",
+    "verdict": "found",
+    "http_status": 200,
+    "tldr": "Found as a first-party project claim on a2a-protocol.org (2026-08-27), not as an independently audited census. Attribute the '150+ organizations' and production-industry language to that post; confidence on the count is medium.",
+    "body": {
+      "attribution_url": "https://a2a-protocol.org/latest/blog/2026/08/27/a-new-chapter-for-a2a-joining-the-agentic-ai-foundation/",
+      "what_the_page_claims": "First-party A2A project blog states backing by over 150 organizations and production use across domains such as supply chains, financial services, and mobile.",
+      "independent_audit": false,
+      "how_to_read": "Treat as self-reported project marketing / status language until a roster or LF/AAIF list is fetched."
+    },
+    "confidence": "medium",
+    "sources": [
+      {
+        "title": "A new chapter for A2A — joining the Agentic AI Foundation",
+        "url": "https://a2a-protocol.org/latest/blog/2026/08/27/a-new-chapter-for-a2a-joining-the-agentic-ai-foundation/",
+        "publisher": "a2a-protocol.org",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "First-party source of the 150+ orgs / production claim (self-reported)"
+      }
+    ],
+    "gaps": [
+      "Need the org list or AAIF/LF roster to treat 150 as audited."
+    ],
+    "as_of": "2026-09-12",
+    "meta": {
+      "mode": "golden",
+      "billable": true
+    }
+  },
+  "reference_expected": {
+    "claim_or_url": "A2A is backed by over 150 organizations and runs in production across supply chains, financial services, and mobile.",
+    "ask": "Verify this claim.",
+    "verdict": "found",
+    "http_status": 200,
+    "tldr": "Found as a first-party project claim on a2a-protocol.org (2026-08-27), not as an independently audited census. Attribute the '150+ organizations' and production-industry language to that post; confidence on the count is medium.",
+    "body": {
+      "attribution_url": "https://a2a-protocol.org/latest/blog/2026/08/27/a-new-chapter-for-a2a-joining-the-agentic-ai-foundation/",
+      "what_the_page_claims": "First-party A2A project blog states backing by over 150 organizations and production use across domains such as supply chains, financial services, and mobile.",
+      "independent_audit": false,
+      "how_to_read": "Treat as self-reported project marketing / status language until a roster or LF/AAIF list is fetched."
+    },
+    "confidence": "medium",
+    "sources": [
+      {
+        "title": "A new chapter for A2A — joining the Agentic AI Foundation",
+        "url": "https://a2a-protocol.org/latest/blog/2026/08/27/a-new-chapter-for-a2a-joining-the-agentic-ai-foundation/",
+        "publisher": "a2a-protocol.org",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "First-party source of the 150+ orgs / production claim (self-reported)"
+      }
+    ],
+    "gaps": [
+      "Need the org list or AAIF/LF roster to treat 150 as audited."
+    ],
+    "as_of": "2026-09-12"
+  }
+}

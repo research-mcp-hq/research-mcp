@@ -1,0 +1,82 @@
+{
+  "id": "N2-lookup-token-passthrough",
+  "tool": "source_lookup",
+  "depthBar": "lookup",
+  "mustInclude": [
+    "must not",
+    "forbidden",
+    "confused deputy"
+  ],
+  "mustNot": [
+    "merely not recommended"
+  ],
+  "allowedConfidence": [
+    "high"
+  ],
+  "sample_output": {
+    "claim_or_url": "MCP servers may accept a client’s existing API token and forward it to a downstream API (token passthrough).",
+    "ask": "Is this allowed?",
+    "verdict": "found",
+    "http_status": 200,
+    "tldr": "Found as a forbidden anti-pattern: the claim is false as policy. MCP security best practices explicitly forbid token passthrough — servers MUST NOT accept tokens that were not issued for that MCP server.",
+    "body": {
+      "policy": "Token passthrough is explicitly forbidden (MUST NOT).",
+      "rule": "Servers MUST NOT accept tokens that were not issued for that MCP server.",
+      "risks_named_on_page": [
+        "audience validation failure",
+        "confused deputy",
+        "broken audit",
+        "control circumvention"
+      ],
+      "paraphrase": "Accepting a client's existing API token and forwarding it downstream is an anti-pattern, not an allowed integration pattern."
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "MCP Security Best Practices",
+        "url": "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Token passthrough forbidden; MUST NOT; named risks"
+      }
+    ],
+    "gaps": [],
+    "as_of": "2026-09-12",
+    "meta": {
+      "mode": "golden",
+      "billable": true
+    }
+  },
+  "reference_expected": {
+    "claim_or_url": "MCP servers may accept a client’s existing API token and forward it to a downstream API (token passthrough).",
+    "ask": "Is this allowed?",
+    "verdict": "found",
+    "http_status": 200,
+    "tldr": "Found as a forbidden anti-pattern: the claim is false as policy. MCP security best practices explicitly forbid token passthrough — servers MUST NOT accept tokens that were not issued for that MCP server.",
+    "body": {
+      "policy": "Token passthrough is explicitly forbidden (MUST NOT).",
+      "rule": "Servers MUST NOT accept tokens that were not issued for that MCP server.",
+      "risks_named_on_page": [
+        "audience validation failure",
+        "confused deputy",
+        "broken audit",
+        "control circumvention"
+      ],
+      "paraphrase": "Accepting a client's existing API token and forwarding it downstream is an anti-pattern, not an allowed integration pattern."
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "MCP Security Best Practices",
+        "url": "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Token passthrough forbidden; MUST NOT; named risks"
+      }
+    ],
+    "gaps": [],
+    "as_of": "2026-09-12"
+  }
+}

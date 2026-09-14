@@ -1,0 +1,137 @@
+{
+  "id": "G2-brief-sparse",
+  "tool": "research_brief",
+  "depthBar": "standard",
+  "mustInclude": [
+    "hobby",
+    "unknown",
+    "smithery.ai/pricing"
+  ],
+  "mustNot": [
+    "$9/mo",
+    "$29/mo",
+    "exactly 1200 paying"
+  ],
+  "allowedConfidence": [
+    "low",
+    "unknown"
+  ],
+  "sample_output": {
+    "query": "How many paying customers does Smithery have for hosted MCP servers, and what is Hobby plan list price in USD?",
+    "depth": "standard",
+    "tldr": "Public sources describe Smithery registry listing of external servers as free and name Hobby / Pro / Custom hosted plans, but exact USD list prices and paying-customer counts were not on a fetchable static page in this research. Confidence is unknown/low; do not treat any dollar figure as verified.",
+    "body": {
+      "what_we_can_say": [
+        "Third-party pricing writeups describe listing external MCP servers on the Smithery registry as free.",
+        "Hosted plan names Hobby, Pro, and Custom appear in public secondary writeups.",
+        "Paying-customer count for hosted MCP servers was not verified from a first-party source."
+      ],
+      "what_we_cannot_say": [
+        "Exact Hobby plan list price in USD (not confirmed on a static first-party page).",
+        "Number of paying customers."
+      ],
+      "secondary_notes": "agenticindex.io / apis.io style aggregators are secondary only and must not be treated as primary pricing."
+    },
+    "confidence": "unknown",
+    "sources": [
+      {
+        "title": "Smithery (homepage / product surface)",
+        "url": "https://smithery.ai",
+        "publisher": "Smithery",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Product exists; pricing detail not confirmed from static fetch in this run"
+      },
+      {
+        "title": "Smithery pricing page (JS-rendered; confirm live)",
+        "url": "https://smithery.ai/pricing",
+        "publisher": "Smithery",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Candidate first-party pricing URL — needs live/JS fetch to confirm USD amounts"
+      },
+      {
+        "title": "Third-party Smithery plan writeups (secondary)",
+        "url": "https://apis.io",
+        "publisher": "apis.io (secondary aggregator)",
+        "accessed": "2026-09-12",
+        "type": "secondary",
+        "supports": "Mentions Hobby/Pro/Custom plan names and free external listing — not primary"
+      },
+      {
+        "title": "Agentic index / marketplace commentary (secondary)",
+        "url": "https://agenticindex.io",
+        "publisher": "agenticindex.io (secondary)",
+        "accessed": "2026-09-12",
+        "type": "secondary",
+        "supports": "Secondary commentary only; not a source of list price"
+      }
+    ],
+    "gaps": [
+      "Fetch https://smithery.ai/pricing (JS-rendered) or a first-party Smithery blog to confirm Hobby USD list price.",
+      "Obtain first-party disclosure for paying-customer count; do not invent a number."
+    ],
+    "as_of": "2026-09-12",
+    "meta": {
+      "mode": "golden",
+      "billable": true
+    }
+  },
+  "reference_expected": {
+    "query": "How many paying customers does Smithery have for hosted MCP servers, and what is Hobby plan list price in USD?",
+    "depth": "standard",
+    "tldr": "Public sources describe Smithery registry listing of external servers as free and name Hobby / Pro / Custom hosted plans, but exact USD list prices and paying-customer counts were not on a fetchable static page in this research. Confidence is unknown/low; do not treat any dollar figure as verified.",
+    "body": {
+      "what_we_can_say": [
+        "Third-party pricing writeups describe listing external MCP servers on the Smithery registry as free.",
+        "Hosted plan names Hobby, Pro, and Custom appear in public secondary writeups.",
+        "Paying-customer count for hosted MCP servers was not verified from a first-party source."
+      ],
+      "what_we_cannot_say": [
+        "Exact Hobby plan list price in USD (not confirmed on a static first-party page).",
+        "Number of paying customers."
+      ],
+      "secondary_notes": "agenticindex.io / apis.io style aggregators are secondary only and must not be treated as primary pricing."
+    },
+    "confidence": "unknown",
+    "sources": [
+      {
+        "title": "Smithery (homepage / product surface)",
+        "url": "https://smithery.ai",
+        "publisher": "Smithery",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Product exists; pricing detail not confirmed from static fetch in this run"
+      },
+      {
+        "title": "Smithery pricing page (JS-rendered; confirm live)",
+        "url": "https://smithery.ai/pricing",
+        "publisher": "Smithery",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Candidate first-party pricing URL — needs live/JS fetch to confirm USD amounts"
+      },
+      {
+        "title": "Third-party Smithery plan writeups (secondary)",
+        "url": "https://apis.io",
+        "publisher": "apis.io (secondary aggregator)",
+        "accessed": "2026-09-12",
+        "type": "secondary",
+        "supports": "Mentions Hobby/Pro/Custom plan names and free external listing — not primary"
+      },
+      {
+        "title": "Agentic index / marketplace commentary (secondary)",
+        "url": "https://agenticindex.io",
+        "publisher": "agenticindex.io (secondary)",
+        "accessed": "2026-09-12",
+        "type": "secondary",
+        "supports": "Secondary commentary only; not a source of list price"
+      }
+    ],
+    "gaps": [
+      "Fetch https://smithery.ai/pricing (JS-rendered) or a first-party Smithery blog to confirm Hobby USD list price.",
+      "Obtain first-party disclosure for paying-customer count; do not invent a number."
+    ],
+    "as_of": "2026-09-12"
+  }
+}

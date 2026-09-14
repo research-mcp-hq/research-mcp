@@ -1,0 +1,241 @@
+{
+  "id": "G3-compare-happy",
+  "tool": "compare_options",
+  "depthBar": "standard",
+  "mustInclude": [
+    "vertical",
+    "horizontal",
+    "complementary",
+    "mcp",
+    "2026-07-28"
+  ],
+  "mustNot": [
+    "single unconditional winner: a2a only"
+  ],
+  "allowedConfidence": [
+    "high",
+    "medium"
+  ],
+  "sample_output": {
+    "options": [
+      "MCP",
+      "A2A"
+    ],
+    "question": "We want other agents to call our research tools. Should we expose MCP, A2A, or both?",
+    "criteria": [
+      "job_to_be_done",
+      "layer",
+      "governance",
+      "maturity_as_of_2026-09"
+    ],
+    "tldr": "Ship MCP. Callers are LLM hosts that need tools (`research_brief`, etc.). A2A is the peer-agent layer (agent cards, delegation). Complementary; A2A is a later distribution surface, not the v1 interface.",
+    "body": {
+      "option_scope": {
+        "MCP": "Vertical: host/client ↔ tool/data server (JSON-RPC tools/resources).",
+        "A2A": "Horizontal: opaque agents discover via agent cards, delegate, and collaborate."
+      },
+      "table": [
+        {
+          "criterion": "job_to_be_done",
+          "MCP": "Expose tools/data to LLM hosts (this product is a tool server).",
+          "A2A": "Peer agent discovery and delegation across vendors.",
+          "winner_if": "If callers are hosts needing tools → MCP."
+        },
+        {
+          "criterion": "layer",
+          "MCP": "Vertical integration layer (host ↔ server).",
+          "A2A": "Horizontal agent-to-agent layer (A2A docs describe MCP as vertical, A2A as horizontal).",
+          "winner_if": "Complementary layers — not substitutes."
+        },
+        {
+          "criterion": "governance",
+          "MCP": "Donated to AAIF / Linux Foundation directed fund (announced 2025-12-09); founding project.",
+          "A2A": "Created by Google; Linux Foundation project 2025-06-23; AAIF Growth Stage as of 2026-08-27.",
+          "winner_if": "Both LF/AAIF-aligned; pick by job, not governance brand."
+        },
+        {
+          "criterion": "maturity_as_of_2026-09",
+          "MCP": "Spec observed 2026-07-28 at modelcontextprotocol.io; broad host/client ecosystem.",
+          "A2A": "Spec v1.0.0; project claims production use — adoption counts are first-party (see attribution).",
+          "winner_if": "For tool-server UX today → MCP; for agent-card federation later → add A2A."
+        }
+      ],
+      "recommendation": {
+        "overall": "Expose MCP now. Add A2A later if we want agent-card discovery / peer delegation across vendors.",
+        "conditional": [
+          "If you care about Cursor/Claude/host tool calling → MCP first.",
+          "If you care about cross-vendor agent delegation → plan A2A as a second surface."
+        ],
+        "adoption_note": "A2A's '150+ organizations' figure is attributed to a2a-protocol.org (2026-08-27), not independently audited here."
+      }
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "MCP Specification 2026-07-28",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "MCP role as host/client ↔ server; current spec version"
+      },
+      {
+        "title": "Introducing the Model Context Protocol",
+        "url": "https://www.anthropic.com/news/model-context-protocol",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "MCP purpose and Anthropic open-source announcement"
+      },
+      {
+        "title": "A2A Protocol Specification",
+        "url": "https://a2a-protocol.org/latest/specification/",
+        "publisher": "a2a-protocol.org",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "A2A as agent-to-agent; agent cards; complementary to MCP (vertical vs horizontal)"
+      },
+      {
+        "title": "A new chapter for A2A — joining the Agentic AI Foundation",
+        "url": "https://a2a-protocol.org/latest/blog/2026/08/27/a-new-chapter-for-a2a-joining-the-agentic-ai-foundation/",
+        "publisher": "a2a-protocol.org",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "AAIF Growth Stage 2026-08-27; first-party '150+ orgs' claim (attributed)"
+      },
+      {
+        "title": "Linux Foundation launches the Agent2Agent protocol project",
+        "url": "https://www.linuxfoundation.org/press/linux-foundation-launches-the-agent2agent-protocol-project-to-enable-secure-intelligent-communication-between-ai-agents",
+        "publisher": "Linux Foundation",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "A2A as LF project (2025-06-23)"
+      },
+      {
+        "title": "A2A GitHub organization / project",
+        "url": "https://github.com/a2aproject/A2A",
+        "publisher": "GitHub / a2aproject",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "A2A project home; spec v1.0.0 lineage"
+      }
+    ],
+    "gaps": [
+      "Independent third-party roster to audit A2A '150+ organizations' claim was not fetched."
+    ],
+    "as_of": "2026-09-12",
+    "meta": {
+      "mode": "golden",
+      "billable": true
+    }
+  },
+  "reference_expected": {
+    "options": [
+      "MCP",
+      "A2A"
+    ],
+    "question": "We want other agents to call our research tools. Should we expose MCP, A2A, or both?",
+    "criteria": [
+      "job_to_be_done",
+      "layer",
+      "governance",
+      "maturity_as_of_2026-09"
+    ],
+    "tldr": "Ship MCP. Callers are LLM hosts that need tools (`research_brief`, etc.). A2A is the peer-agent layer (agent cards, delegation). Complementary; A2A is a later distribution surface, not the v1 interface.",
+    "body": {
+      "option_scope": {
+        "MCP": "Vertical: host/client ↔ tool/data server (JSON-RPC tools/resources).",
+        "A2A": "Horizontal: opaque agents discover via agent cards, delegate, and collaborate."
+      },
+      "table": [
+        {
+          "criterion": "job_to_be_done",
+          "MCP": "Expose tools/data to LLM hosts (this product is a tool server).",
+          "A2A": "Peer agent discovery and delegation across vendors.",
+          "winner_if": "If callers are hosts needing tools → MCP."
+        },
+        {
+          "criterion": "layer",
+          "MCP": "Vertical integration layer (host ↔ server).",
+          "A2A": "Horizontal agent-to-agent layer (A2A docs describe MCP as vertical, A2A as horizontal).",
+          "winner_if": "Complementary layers — not substitutes."
+        },
+        {
+          "criterion": "governance",
+          "MCP": "Donated to AAIF / Linux Foundation directed fund (announced 2025-12-09); founding project.",
+          "A2A": "Created by Google; Linux Foundation project 2025-06-23; AAIF Growth Stage as of 2026-08-27.",
+          "winner_if": "Both LF/AAIF-aligned; pick by job, not governance brand."
+        },
+        {
+          "criterion": "maturity_as_of_2026-09",
+          "MCP": "Spec observed 2026-07-28 at modelcontextprotocol.io; broad host/client ecosystem.",
+          "A2A": "Spec v1.0.0; project claims production use — adoption counts are first-party (see attribution).",
+          "winner_if": "For tool-server UX today → MCP; for agent-card federation later → add A2A."
+        }
+      ],
+      "recommendation": {
+        "overall": "Expose MCP now. Add A2A later if we want agent-card discovery / peer delegation across vendors.",
+        "conditional": [
+          "If you care about Cursor/Claude/host tool calling → MCP first.",
+          "If you care about cross-vendor agent delegation → plan A2A as a second surface."
+        ],
+        "adoption_note": "A2A's '150+ organizations' figure is attributed to a2a-protocol.org (2026-08-27), not independently audited here."
+      }
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "MCP Specification 2026-07-28",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "MCP role as host/client ↔ server; current spec version"
+      },
+      {
+        "title": "Introducing the Model Context Protocol",
+        "url": "https://www.anthropic.com/news/model-context-protocol",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "MCP purpose and Anthropic open-source announcement"
+      },
+      {
+        "title": "A2A Protocol Specification",
+        "url": "https://a2a-protocol.org/latest/specification/",
+        "publisher": "a2a-protocol.org",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "A2A as agent-to-agent; agent cards; complementary to MCP (vertical vs horizontal)"
+      },
+      {
+        "title": "A new chapter for A2A — joining the Agentic AI Foundation",
+        "url": "https://a2a-protocol.org/latest/blog/2026/08/27/a-new-chapter-for-a2a-joining-the-agentic-ai-foundation/",
+        "publisher": "a2a-protocol.org",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "AAIF Growth Stage 2026-08-27; first-party '150+ orgs' claim (attributed)"
+      },
+      {
+        "title": "Linux Foundation launches the Agent2Agent protocol project",
+        "url": "https://www.linuxfoundation.org/press/linux-foundation-launches-the-agent2agent-protocol-project-to-enable-secure-intelligent-communication-between-ai-agents",
+        "publisher": "Linux Foundation",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "A2A as LF project (2025-06-23)"
+      },
+      {
+        "title": "A2A GitHub organization / project",
+        "url": "https://github.com/a2aproject/A2A",
+        "publisher": "GitHub / a2aproject",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "A2A project home; spec v1.0.0 lineage"
+      }
+    ],
+    "gaps": [
+      "Independent third-party roster to audit A2A '150+ organizations' claim was not fetched."
+    ],
+    "as_of": "2026-09-12"
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "id": "N1-brief-annotations",
+  "tool": "research_brief",
+  "depthBar": "standard",
+  "mustInclude": [
+    "untrusted",
+    "readonlyhint",
+    "destructivehint",
+    "2025-03-26",
+    "consent"
+  ],
+  "mustNot": [
+    "cve-2024",
+    "cve-2025"
+  ],
+  "allowedConfidence": [
+    "high"
+  ],
+  "sample_output": {
+    "query": "Can an MCP host trust tool annotations (readOnlyHint, destructiveHint) to skip user confirmation? What does the spec actually require?",
+    "depth": "standard",
+    "tldr": "No. Annotations are a risk vocabulary, not a permission system. Defaults are pessimistic; from an untrusted server they are informational only. Skip confirmation only for servers you already trust, and keep enforcement in the host (consent, sandbox, egress).",
+    "body": {
+      "what_annotations_are": "Tool annotations shipped in spec revision 2025-03-26. Fields: readOnlyHint (default false), destructiveHint (default true), idempotentHint (default false), openWorldHint (default true). Every property is a hint.",
+      "trust_rule": "Clients MUST treat annotations as untrusted unless the server is trusted. A server can lie (readOnlyHint: true and still delete files).",
+      "unannotated_defaults": "Unannotated tool = assume write, destructive, non-idempotent, open-world.",
+      "tool_safety": "MCP Tool Safety: tool descriptions/annotations are untrusted unless the server is trusted; hosts must get explicit user consent before invoking a tool.",
+      "real_guarantees": "Consent UI, sandbox, and network egress controls — not booleans from the server.",
+      "recommendation": "Do not auto-approve solely on readOnlyHint from a third-party server."
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "MCP Specification 2026-07-28 — Security and Trust & Safety",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Annotations untrusted; consent before tool invocation; Tool Safety"
+      },
+      {
+        "title": "Tool annotations (MCP blog)",
+        "url": "https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/",
+        "publisher": "blog.modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Annotation fields and defaults; risk vocabulary framing"
+      },
+      {
+        "title": "MCP Tools (2025-06-18 server/tools)",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/tools",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Older tools page; annotations untrusted; field semantics"
+      },
+      {
+        "title": "MCP specification repository",
+        "url": "https://github.com/modelcontextprotocol/modelcontextprotocol",
+        "publisher": "GitHub / modelcontextprotocol",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Spec source lineage for annotation revision 2025-03-26"
+      }
+    ],
+    "gaps": [],
+    "as_of": "2026-09-12",
+    "meta": {
+      "mode": "golden",
+      "billable": true
+    }
+  },
+  "reference_expected": {
+    "query": "Can an MCP host trust tool annotations (readOnlyHint, destructiveHint) to skip user confirmation? What does the spec actually require?",
+    "depth": "standard",
+    "tldr": "No. Annotations are a risk vocabulary, not a permission system. Defaults are pessimistic; from an untrusted server they are informational only. Skip confirmation only for servers you already trust, and keep enforcement in the host (consent, sandbox, egress).",
+    "body": {
+      "what_annotations_are": "Tool annotations shipped in spec revision 2025-03-26. Fields: readOnlyHint (default false), destructiveHint (default true), idempotentHint (default false), openWorldHint (default true). Every property is a hint.",
+      "trust_rule": "Clients MUST treat annotations as untrusted unless the server is trusted. A server can lie (readOnlyHint: true and still delete files).",
+      "unannotated_defaults": "Unannotated tool = assume write, destructive, non-idempotent, open-world.",
+      "tool_safety": "MCP Tool Safety: tool descriptions/annotations are untrusted unless the server is trusted; hosts must get explicit user consent before invoking a tool.",
+      "real_guarantees": "Consent UI, sandbox, and network egress controls — not booleans from the server.",
+      "recommendation": "Do not auto-approve solely on readOnlyHint from a third-party server."
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "MCP Specification 2026-07-28 — Security and Trust & Safety",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Annotations untrusted; consent before tool invocation; Tool Safety"
+      },
+      {
+        "title": "Tool annotations (MCP blog)",
+        "url": "https://blog.modelcontextprotocol.io/posts/2026-03-16-tool-annotations/",
+        "publisher": "blog.modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Annotation fields and defaults; risk vocabulary framing"
+      },
+      {
+        "title": "MCP Tools (2025-06-18 server/tools)",
+        "url": "https://modelcontextprotocol.io/specification/2025-06-18/server/tools",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Older tools page; annotations untrusted; field semantics"
+      },
+      {
+        "title": "MCP specification repository",
+        "url": "https://github.com/modelcontextprotocol/modelcontextprotocol",
+        "publisher": "GitHub / modelcontextprotocol",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Spec source lineage for annotation revision 2025-03-26"
+      }
+    ],
+    "gaps": [],
+    "as_of": "2026-09-12"
+  }
+}

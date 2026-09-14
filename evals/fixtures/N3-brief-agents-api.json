@@ -1,0 +1,160 @@
+{
+  "id": "N3-brief-agents-api",
+  "tool": "research_brief",
+  "depthBar": "standard",
+  "mustInclude": [
+    "agents/sessions",
+    "openai-beta",
+    "type: \\\"mcp\\\"",
+    "not a substitute"
+  ],
+  "mustNot": [
+    "agents api replaces exposing an mcp server"
+  ],
+  "allowedConfidence": [
+    "high",
+    "unknown"
+  ],
+  "sample_output": {
+    "query": "How does OpenAI’s Agents API connect to MCP servers, and is it a substitute for us exposing MCP tools?",
+    "depth": "standard",
+    "tldr": "Agents API is a managed Codex harness (sessions, optional sandbox, tools, MCP, subagents) that can call MCP over HTTP as a first-class tool type. It is a caller/host, not a substitute for exposing our MCP tools — we remain the server; listing/connect docs for that host is distribution.",
+    "body": {
+      "what_it_is": "Agents API = managed Codex harness: sessions, optional sandbox/environment, tools, MCP, subagents.",
+      "mcp_integration": {
+        "tool_type": "agent.tools entry with type: \"mcp\"",
+        "fields": [
+          "server_url (HTTP)",
+          "optional allowed_tools",
+          "optional required"
+        ],
+        "example_docs_mcp": "https://developers.openai.com/mcp"
+      },
+      "session_create": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/agents/sessions",
+        "header": "OpenAI-Beta: agents=v1",
+        "note": "Shown in official curl examples on fetched docs."
+      },
+      "residency_as_of_docs_fetch": "Docs page fetched 2026-09-12: US data residency only; not ZDR-eligible (including self-hosted sandbox).",
+      "recommendation": "Not a substitute. Agents API is a caller (host). We remain the server. Treat OpenAI Agents as a distribution surface that speaks MCP.",
+      "not_an_interop_protocol": "Do not treat Agents API as an agent-to-agent interop protocol like A2A.",
+      "confidence_split": {
+        "api_shape": "high (fetched first-party docs)",
+        "launch_day_marketing": "unknown (introducing-the-agents-api page 403 this run)"
+      }
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "Agents API overview",
+        "url": "https://developers.openai.com/api/docs/guides/agents-api/overview",
+        "publisher": "developers.openai.com",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Harness shape; sessions; tools/MCP/subagents; residency notes"
+      },
+      {
+        "title": "Agents API — MCP tools",
+        "url": "https://developers.openai.com/api/docs/guides/agents-api/tools/mcp",
+        "publisher": "developers.openai.com",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "type: mcp; server_url; allowed_tools / required"
+      },
+      {
+        "title": "OpenAI MCP docs entry",
+        "url": "https://developers.openai.com/mcp",
+        "publisher": "developers.openai.com",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Official MCP connection docs for OpenAI hosts"
+      },
+      {
+        "title": "MCP Specification 2026-07-28",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "MCP server role vs host/client — Agents API is a host"
+      }
+    ],
+    "gaps": [
+      "https://openai.com/index/introducing-the-agents-api/ returned 403 on 2026-09-12 — do not state Sep 10, 2026 launch date as high confidence until that page is fetched."
+    ],
+    "as_of": "2026-09-12",
+    "meta": {
+      "mode": "golden",
+      "billable": true
+    }
+  },
+  "reference_expected": {
+    "query": "How does OpenAI’s Agents API connect to MCP servers, and is it a substitute for us exposing MCP tools?",
+    "depth": "standard",
+    "tldr": "Agents API is a managed Codex harness (sessions, optional sandbox, tools, MCP, subagents) that can call MCP over HTTP as a first-class tool type. It is a caller/host, not a substitute for exposing our MCP tools — we remain the server; listing/connect docs for that host is distribution.",
+    "body": {
+      "what_it_is": "Agents API = managed Codex harness: sessions, optional sandbox/environment, tools, MCP, subagents.",
+      "mcp_integration": {
+        "tool_type": "agent.tools entry with type: \"mcp\"",
+        "fields": [
+          "server_url (HTTP)",
+          "optional allowed_tools",
+          "optional required"
+        ],
+        "example_docs_mcp": "https://developers.openai.com/mcp"
+      },
+      "session_create": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/agents/sessions",
+        "header": "OpenAI-Beta: agents=v1",
+        "note": "Shown in official curl examples on fetched docs."
+      },
+      "residency_as_of_docs_fetch": "Docs page fetched 2026-09-12: US data residency only; not ZDR-eligible (including self-hosted sandbox).",
+      "recommendation": "Not a substitute. Agents API is a caller (host). We remain the server. Treat OpenAI Agents as a distribution surface that speaks MCP.",
+      "not_an_interop_protocol": "Do not treat Agents API as an agent-to-agent interop protocol like A2A.",
+      "confidence_split": {
+        "api_shape": "high (fetched first-party docs)",
+        "launch_day_marketing": "unknown (introducing-the-agents-api page 403 this run)"
+      }
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "Agents API overview",
+        "url": "https://developers.openai.com/api/docs/guides/agents-api/overview",
+        "publisher": "developers.openai.com",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Harness shape; sessions; tools/MCP/subagents; residency notes"
+      },
+      {
+        "title": "Agents API — MCP tools",
+        "url": "https://developers.openai.com/api/docs/guides/agents-api/tools/mcp",
+        "publisher": "developers.openai.com",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "type: mcp; server_url; allowed_tools / required"
+      },
+      {
+        "title": "OpenAI MCP docs entry",
+        "url": "https://developers.openai.com/mcp",
+        "publisher": "developers.openai.com",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Official MCP connection docs for OpenAI hosts"
+      },
+      {
+        "title": "MCP Specification 2026-07-28",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "MCP server role vs host/client — Agents API is a host"
+      }
+    ],
+    "gaps": [
+      "https://openai.com/index/introducing-the-agents-api/ returned 403 on 2026-09-12 — do not state Sep 10, 2026 launch date as high confidence until that page is fetched."
+    ],
+    "as_of": "2026-09-12"
+  }
+}

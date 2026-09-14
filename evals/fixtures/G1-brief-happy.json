@@ -1,0 +1,176 @@
+{
+  "id": "G1-brief-happy",
+  "tool": "research_brief",
+  "depthBar": "standard",
+  "mustInclude": [
+    "json-rpc",
+    "2024-11-25",
+    "david soria parra",
+    "justin spahr-summers",
+    "agentic ai foundation",
+    "2025-12-09",
+    "2026-07-28"
+  ],
+  "mustNot": [
+    "industry standard with 10m installs"
+  ],
+  "allowedConfidence": [
+    "high"
+  ],
+  "sample_output": {
+    "query": "What is the Model Context Protocol, who created it, and who maintains it as of September 2026?",
+    "depth": "standard",
+    "tldr": "MCP is an open JSON-RPC protocol that lets LLM hosts talk to tool/data servers. Anthropic open-sourced it on 25 Nov 2024 (authors: David Soria Parra, Justin Spahr-Summers) and donated it to the Linux Foundation Agentic AI Foundation on 9 Dec 2025. Latest published spec we fetched is 2026-07-28.",
+    "body": {
+      "what_it_is": "An open protocol connecting LLM applications (hosts/clients) to external data and tools via MCP servers. It uses JSON-RPC 2.0. It is not an agent-to-agent peer protocol.",
+      "creators": {
+        "open_sourced_by": "Anthropic",
+        "open_source_date": "2024-11-25",
+        "named_authors": [
+          "David Soria Parra",
+          "Justin Spahr-Summers"
+        ]
+      },
+      "governance": {
+        "donated_to": "Agentic AI Foundation (AAIF), a Linux Foundation directed fund",
+        "donation_announced": "2025-12-09"
+      },
+      "current_status": {
+        "spec_version_observed": "2026-07-28",
+        "spec_url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "roles": [
+          "hosts",
+          "clients",
+          "servers"
+        ],
+        "transport_note": "JSON-RPC 2.0 messages between host/client and servers"
+      },
+      "implications": "For a paid research tool product, MCP is the natural interface: callers are LLM hosts that need tools, not peer agents."
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "Introducing the Model Context Protocol",
+        "url": "https://www.anthropic.com/news/model-context-protocol",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Open-sourced 2024-11-25; purpose as connector for AI assistants to data/tools"
+      },
+      {
+        "title": "modelcontextprotocol specification repository",
+        "url": "https://github.com/modelcontextprotocol/modelcontextprotocol",
+        "publisher": "Model Context Protocol (GitHub)",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Protocol home / spec source of truth"
+      },
+      {
+        "title": "MCP Specification 2026-07-28",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Current observed spec version; hosts/clients/servers; JSON-RPC 2.0"
+      },
+      {
+        "title": "Linux Foundation announces the Agentic AI Foundation",
+        "url": "https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation",
+        "publisher": "Linux Foundation",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "AAIF formation; MCP donated as founding project (2025-12-09)"
+      },
+      {
+        "title": "Donating MCP and establishing the Agentic AI Foundation",
+        "url": "https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Authors David Soria Parra and Justin Spahr-Summers; donation narrative"
+      }
+    ],
+    "gaps": [],
+    "as_of": "2026-09-12",
+    "meta": {
+      "mode": "golden",
+      "billable": true
+    }
+  },
+  "reference_expected": {
+    "query": "What is the Model Context Protocol, who created it, and who maintains it as of September 2026?",
+    "depth": "standard",
+    "tldr": "MCP is an open JSON-RPC protocol that lets LLM hosts talk to tool/data servers. Anthropic open-sourced it on 25 Nov 2024 (authors: David Soria Parra, Justin Spahr-Summers) and donated it to the Linux Foundation Agentic AI Foundation on 9 Dec 2025. Latest published spec we fetched is 2026-07-28.",
+    "body": {
+      "what_it_is": "An open protocol connecting LLM applications (hosts/clients) to external data and tools via MCP servers. It uses JSON-RPC 2.0. It is not an agent-to-agent peer protocol.",
+      "creators": {
+        "open_sourced_by": "Anthropic",
+        "open_source_date": "2024-11-25",
+        "named_authors": [
+          "David Soria Parra",
+          "Justin Spahr-Summers"
+        ]
+      },
+      "governance": {
+        "donated_to": "Agentic AI Foundation (AAIF), a Linux Foundation directed fund",
+        "donation_announced": "2025-12-09"
+      },
+      "current_status": {
+        "spec_version_observed": "2026-07-28",
+        "spec_url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "roles": [
+          "hosts",
+          "clients",
+          "servers"
+        ],
+        "transport_note": "JSON-RPC 2.0 messages between host/client and servers"
+      },
+      "implications": "For a paid research tool product, MCP is the natural interface: callers are LLM hosts that need tools, not peer agents."
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "Introducing the Model Context Protocol",
+        "url": "https://www.anthropic.com/news/model-context-protocol",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Open-sourced 2024-11-25; purpose as connector for AI assistants to data/tools"
+      },
+      {
+        "title": "modelcontextprotocol specification repository",
+        "url": "https://github.com/modelcontextprotocol/modelcontextprotocol",
+        "publisher": "Model Context Protocol (GitHub)",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Protocol home / spec source of truth"
+      },
+      {
+        "title": "MCP Specification 2026-07-28",
+        "url": "https://modelcontextprotocol.io/specification/2026-07-28",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Current observed spec version; hosts/clients/servers; JSON-RPC 2.0"
+      },
+      {
+        "title": "Linux Foundation announces the Agentic AI Foundation",
+        "url": "https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation",
+        "publisher": "Linux Foundation",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "AAIF formation; MCP donated as founding project (2025-12-09)"
+      },
+      {
+        "title": "Donating MCP and establishing the Agentic AI Foundation",
+        "url": "https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Authors David Soria Parra and Justin Spahr-Summers; donation narrative"
+      }
+    ],
+    "gaps": [],
+    "as_of": "2026-09-12"
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "id": "G5-lookup-found",
+  "tool": "source_lookup",
+  "depthBar": "lookup",
+  "mustInclude": [
+    "found",
+    "nov 25, 2024",
+    "david soria parra",
+    "justin spahr-summers"
+  ],
+  "mustNot": [],
+  "allowedConfidence": [
+    "high"
+  ],
+  "sample_output": {
+    "claim_or_url": "https://www.anthropic.com/news/model-context-protocol",
+    "ask": "When was MCP announced and who are the named authors?",
+    "verdict": "found",
+    "http_status": 200,
+    "tldr": "Found. Anthropic announced MCP on Nov 25, 2024. Named authors: David Soria Parra and Justin Spahr-Summers. Page describes open-sourcing MCP as a standard for connecting AI assistants to systems where data lives.",
+    "body": {
+      "canonical_url": "https://www.anthropic.com/news/model-context-protocol",
+      "page_date": "2024-11-25",
+      "authors": [
+        "David Soria Parra",
+        "Justin Spahr-Summers"
+      ],
+      "paraphrase": "Anthropic open-sourced the Model Context Protocol as an open standard for connecting AI assistants to the systems where data lives.",
+      "publisher": "Anthropic"
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "Introducing the Model Context Protocol",
+        "url": "https://www.anthropic.com/news/model-context-protocol",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Announcement date Nov 25, 2024; authors; open-sourcing purpose"
+      }
+    ],
+    "gaps": [],
+    "as_of": "2026-09-12",
+    "meta": {
+      "mode": "golden",
+      "billable": true
+    }
+  },
+  "reference_expected": {
+    "claim_or_url": "https://www.anthropic.com/news/model-context-protocol",
+    "ask": "When was MCP announced and who are the named authors?",
+    "verdict": "found",
+    "http_status": 200,
+    "tldr": "Found. Anthropic announced MCP on Nov 25, 2024. Named authors: David Soria Parra and Justin Spahr-Summers. Page describes open-sourcing MCP as a standard for connecting AI assistants to systems where data lives.",
+    "body": {
+      "canonical_url": "https://www.anthropic.com/news/model-context-protocol",
+      "page_date": "2024-11-25",
+      "authors": [
+        "David Soria Parra",
+        "Justin Spahr-Summers"
+      ],
+      "paraphrase": "Anthropic open-sourced the Model Context Protocol as an open standard for connecting AI assistants to the systems where data lives.",
+      "publisher": "Anthropic"
+    },
+    "confidence": "high",
+    "sources": [
+      {
+        "title": "Introducing the Model Context Protocol",
+        "url": "https://www.anthropic.com/news/model-context-protocol",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Announcement date Nov 25, 2024; authors; open-sourcing purpose"
+      }
+    ],
+    "gaps": [],
+    "as_of": "2026-09-12"
+  }
+}

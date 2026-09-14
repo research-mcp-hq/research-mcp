@@ -1,0 +1,211 @@
+{
+  "id": "G4-compare-missing",
+  "tool": "compare_options",
+  "depthBar": "standard",
+  "mustInclude": [
+    "unknown",
+    "take_rate",
+    "first-party"
+  ],
+  "mustNot": [
+    "15% take rate",
+    "20% take rate"
+  ],
+  "allowedConfidence": [
+    "low",
+    "unknown",
+    "medium"
+  ],
+  "sample_output": {
+    "options": [
+      "Smithery listing",
+      "Official MCP registry"
+    ],
+    "question": "Where should we list a paid metered research MCP first?",
+    "criteria": [
+      "listing_cost",
+      "built_in_metering",
+      "reach",
+      "take_rate"
+    ],
+    "tldr": "List where callers already browse for distribution first. Smithery external listing is described as free in third-party writeups; the official MCP registry exists (Anthropic AAIF post). Take rate for both is unknown — do not invent a % comparison.",
+    "body": {
+      "option_scope": {
+        "Smithery listing": "Third-party MCP directory / hosted surface (Arcade-era context).",
+        "Official MCP registry": "Official registry called out in Anthropic AAIF materials."
+      },
+      "table": [
+        {
+          "criterion": "listing_cost",
+          "Smithery listing": "External listing described as free in third-party plan writeups; confirm on smithery.ai.",
+          "Official MCP registry": "Listing cost not independently confirmed in this run.",
+          "winner_if": "If zero listing cost matters and Smithery free listing holds → Smithery for discovery."
+        },
+        {
+          "criterion": "built_in_metering",
+          "Smithery listing": "Not verified as a first-party checkout/meter for arbitrary paid MCPs.",
+          "Official MCP registry": "Directory, not a payment rail — do not assume built-in metering.",
+          "winner_if": "Meter via your own Stripe API key; treat registries as discovery only."
+        },
+        {
+          "criterion": "reach",
+          "Smithery listing": "Known browsing surface for MCP servers (qualitative).",
+          "Official MCP registry": "Canonical discovery path referenced by Anthropic/AAIF materials.",
+          "winner_if": "If you care about official-ecosystem reach → official registry; list both if cheap."
+        },
+        {
+          "criterion": "take_rate",
+          "Smithery listing": "unknown",
+          "Official MCP registry": "unknown",
+          "winner_if": "Cannot rank on take rate without first-party marketplace terms."
+        }
+      ],
+      "recommendation": {
+        "overall": "Prioritize distribution (list where callers browse). Refuse a fake take-rate comparison until first-party terms are fetched.",
+        "conditional": [
+          "If discovery on Smithery is free → list there for reach.",
+          "If official registry listing is available → list there for canonical reach.",
+          "Bill humans via Stripe API keys; do not depend on registry take rate for revenue."
+        ]
+      }
+    },
+    "confidence": "low",
+    "sources": [
+      {
+        "title": "Smithery",
+        "url": "https://smithery.ai",
+        "publisher": "Smithery",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Smithery as listing/hosted surface; pricing details need live confirm"
+      },
+      {
+        "title": "Smithery pricing (confirm live)",
+        "url": "https://smithery.ai/pricing",
+        "publisher": "Smithery",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Candidate page for listing cost / hosted plans"
+      },
+      {
+        "title": "About the MCP registry",
+        "url": "https://modelcontextprotocol.io/registry/about",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Official MCP registry exists"
+      },
+      {
+        "title": "Donating MCP / Agentic AI Foundation (registry callout)",
+        "url": "https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Official registry called out in Anthropic AAIF post"
+      }
+    ],
+    "gaps": [
+      "need first-party marketplace terms for take_rate on Smithery and the official MCP registry.",
+      "Confirm Smithery external listing cost on https://smithery.ai/pricing (JS-rendered)."
+    ],
+    "as_of": "2026-09-12",
+    "meta": {
+      "mode": "golden",
+      "billable": true
+    }
+  },
+  "reference_expected": {
+    "options": [
+      "Smithery listing",
+      "Official MCP registry"
+    ],
+    "question": "Where should we list a paid metered research MCP first?",
+    "criteria": [
+      "listing_cost",
+      "built_in_metering",
+      "reach",
+      "take_rate"
+    ],
+    "tldr": "List where callers already browse for distribution first. Smithery external listing is described as free in third-party writeups; the official MCP registry exists (Anthropic AAIF post). Take rate for both is unknown — do not invent a % comparison.",
+    "body": {
+      "option_scope": {
+        "Smithery listing": "Third-party MCP directory / hosted surface (Arcade-era context).",
+        "Official MCP registry": "Official registry called out in Anthropic AAIF materials."
+      },
+      "table": [
+        {
+          "criterion": "listing_cost",
+          "Smithery listing": "External listing described as free in third-party plan writeups; confirm on smithery.ai.",
+          "Official MCP registry": "Listing cost not independently confirmed in this run.",
+          "winner_if": "If zero listing cost matters and Smithery free listing holds → Smithery for discovery."
+        },
+        {
+          "criterion": "built_in_metering",
+          "Smithery listing": "Not verified as a first-party checkout/meter for arbitrary paid MCPs.",
+          "Official MCP registry": "Directory, not a payment rail — do not assume built-in metering.",
+          "winner_if": "Meter via your own Stripe API key; treat registries as discovery only."
+        },
+        {
+          "criterion": "reach",
+          "Smithery listing": "Known browsing surface for MCP servers (qualitative).",
+          "Official MCP registry": "Canonical discovery path referenced by Anthropic/AAIF materials.",
+          "winner_if": "If you care about official-ecosystem reach → official registry; list both if cheap."
+        },
+        {
+          "criterion": "take_rate",
+          "Smithery listing": "unknown",
+          "Official MCP registry": "unknown",
+          "winner_if": "Cannot rank on take rate without first-party marketplace terms."
+        }
+      ],
+      "recommendation": {
+        "overall": "Prioritize distribution (list where callers browse). Refuse a fake take-rate comparison until first-party terms are fetched.",
+        "conditional": [
+          "If discovery on Smithery is free → list there for reach.",
+          "If official registry listing is available → list there for canonical reach.",
+          "Bill humans via Stripe API keys; do not depend on registry take rate for revenue."
+        ]
+      }
+    },
+    "confidence": "low",
+    "sources": [
+      {
+        "title": "Smithery",
+        "url": "https://smithery.ai",
+        "publisher": "Smithery",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Smithery as listing/hosted surface; pricing details need live confirm"
+      },
+      {
+        "title": "Smithery pricing (confirm live)",
+        "url": "https://smithery.ai/pricing",
+        "publisher": "Smithery",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Candidate page for listing cost / hosted plans"
+      },
+      {
+        "title": "About the MCP registry",
+        "url": "https://modelcontextprotocol.io/registry/about",
+        "publisher": "modelcontextprotocol.io",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Official MCP registry exists"
+      },
+      {
+        "title": "Donating MCP / Agentic AI Foundation (registry callout)",
+        "url": "https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation",
+        "publisher": "Anthropic",
+        "accessed": "2026-09-12",
+        "type": "primary",
+        "supports": "Official registry called out in Anthropic AAIF post"
+      }
+    ],
+    "gaps": [
+      "need first-party marketplace terms for take_rate on Smithery and the official MCP registry.",
+      "Confirm Smithery external listing cost on https://smithery.ai/pricing (JS-rendered)."
+    ],
+    "as_of": "2026-09-12"
+  }
+}
