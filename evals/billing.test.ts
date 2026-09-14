@@ -1,3 +1,4 @@
+import { requireStripeBillingEnv } from "../src/billing/config.js";
 /**
  * Billing invariant tests — no live Stripe calls.
  * Run: npm run test:billing
@@ -465,5 +466,43 @@ await test("assertSufficientCredits still required only for billable SKU path", 
 
 
 
+
+await test("sk_live_ refused without STRIPE_ALLOW_LIVE=1", () => {
+  const prevKey = process.env.STRIPE_SECRET_KEY;
+  const prevAllow = process.env.STRIPE_ALLOW_LIVE;
+  const prevDb = process.env.DATABASE_URL;
+  const prevWh = process.env.STRIPE_WEBHOOK_SECRET;
+  const prev10 = process.env.STRIPE_PRICE_CREDITS_10;
+  const prev25 = process.env.STRIPE_PRICE_CREDITS_25;
+  const prev50 = process.env.STRIPE_PRICE_CREDITS_50;
+  try {
+    process.env.STRIPE_SECRET_KEY = "sk_live_test_placeholder";
+    process.env.STRIPE_ALLOW_LIVE = "0";
+    process.env.DATABASE_URL = "file::memory:";
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
+    process.env.STRIPE_PRICE_CREDITS_10 = "price_10";
+    process.env.STRIPE_PRICE_CREDITS_25 = "price_25";
+    process.env.STRIPE_PRICE_CREDITS_50 = "price_50";
+    let threw = false;
+    try {
+      requireStripeBillingEnv();
+    } catch (e) {
+      threw = true;
+      assert.ok(String(e).includes("STRIPE_ALLOW_LIVE"));
+    }
+    assert.equal(threw, true);
+    process.env.STRIPE_ALLOW_LIVE = "1";
+    const env = requireStripeBillingEnv();
+    assert.ok(env.stripeSecretKey.startsWith("sk_live_"));
+  } finally {
+    process.env.STRIPE_SECRET_KEY = prevKey;
+    process.env.STRIPE_ALLOW_LIVE = prevAllow;
+    process.env.DATABASE_URL = prevDb;
+    process.env.STRIPE_WEBHOOK_SECRET = prevWh;
+    process.env.STRIPE_PRICE_CREDITS_10 = prev10;
+    process.env.STRIPE_PRICE_CREDITS_25 = prev25;
+    process.env.STRIPE_PRICE_CREDITS_50 = prev50;
+  }
+});
 process.stdout.write(`\nbilling tests: ${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);
