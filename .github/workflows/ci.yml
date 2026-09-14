@@ -1,0 +1,75 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Eval (goldens)
+        run: npm run eval
+
+      - name: Eval (off-golden)
+        run: npm run eval:off
+
+      - name: Billing tests
+        run: npm run test:billing
+
+      - name: Smoke /health
+        run: |
+          API_KEYS=ci-smoke-key node dist/index.js &
+          pid=$!
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3000/health | grep -q '"status":"ok"'; then
+              break
+            fi
+            sleep 0.5
+          done
+          curl -sf http://127.0.0.1:3000/health
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:3000/mcp \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            -H 'Authorization: Bearer bad' \
+            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
+          test "$code" = "401"
+          kill "$pid"
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t research-mcp:ci .
+
+      - name: Smoke container
+        run: |
+          docker run --rm -d --name research-mcp-ci -p 3000:3000 -e API_KEYS=ci-smoke-key research-mcp:ci
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:3000/health | grep -q '"status":"ok"'; then
+              break
+            fi
+            sleep 0.5
+          done
+          curl -sf http://127.0.0.1:3000/health
+          docker stop research-mcp-ci
