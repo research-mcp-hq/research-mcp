@@ -14,6 +14,7 @@ import { handleStripeWebhook } from "./billing/webhook.js";
 import { createResearchMcpServer } from "./server.js";
 import { LedgerUsageLogger, StdoutUsageLogger } from "./usage.js";
 import { VERSION } from "./version.js";
+import { SERVER_CARD } from "./server-card.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? (process.env.FLY_APP_NAME ? "::" : "0.0.0.0");
@@ -86,6 +87,13 @@ async function main(): Promise<void> {
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", version: VERSION });
   });
+
+  // Unauthenticated static card so directories (e.g. Smithery) can list tools
+  // without OAuth discovery. /mcp remains API-key only (Bearer / X-API-Key).
+  app.get("/.well-known/mcp/server-card.json", (_req, res) => {
+    res.type("application/json").json(SERVER_CARD);
+  });
+
 
   const allowedHosts = [
     "localhost",
