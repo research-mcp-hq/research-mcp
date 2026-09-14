@@ -8,7 +8,9 @@ Paid **cited research** remote MCP for coding / research agents (API key auth, n
 
 ## Marketing site (Cloudflare Pages)
 
-Static landing for **https://researchmcp.dev** lives in [`www/`](./www/) (no build). Point Cloudflare Pages **root directory** at `/www`. MCP API remains on Fly — see `deploy/CLOUDFLARE_PAGES.md`.
+**Source of truth:** [`research-mcp-hq/www`](https://github.com/research-mcp-hq/www) (`public/`). Live site: **https://researchmcp.dev**.
+
+The [`www/`](./www/) tree in this repo is a **stub / mirror note only** — do not point Cloudflare Pages here. MCP API origin remains on Fly; branded install URL is `https://mcp.researchmcp.dev/mcp`.
 
 ## MCP URL (production)
 
@@ -16,9 +18,9 @@ Static landing for **https://researchmcp.dev** lives in [`www/`](./www/) (no bui
 https://mcp.researchmcp.dev/mcp
 ```
 
-Health: `https://research-mcp-mhh.fly.dev/health`  
-Server card: `https://research-mcp-mhh.fly.dev/.well-known/mcp/server-card.json`  
-Credits meter: `GET https://research-mcp-mhh.fly.dev/billing/credits` (auth’d)
+Health: `https://mcp.researchmcp.dev/health`  
+Server card: `https://mcp.researchmcp.dev/.well-known/mcp/server-card.json`  
+Credits meter: `GET https://mcp.researchmcp.dev/billing/credits` (auth’d)
 
 ```json
 {
