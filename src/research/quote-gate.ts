@@ -1,7 +1,7 @@
 /**
  * Fail-closed quote gate (optimization-brief #2).
  * Every load-bearing claim needs a verbatim (or lightly normalized) quote
- * that appears in the claim's source_url page text (when set) — no cross-page
+ * that appears in the claim's required source_url page text — no cross-page
  * fallback. Claims must also share real query tokens (stopword-filtered).
  * Text match only — no LLM judge. Weakest claim sets confidence; miss → not billable.
  */
@@ -288,25 +288,24 @@ export function verifyQuotes(
       continue;
     }
 
-    if (source_url) {
-      if (!pageUrls.has(source_url)) {
-        missing.push(entry);
-        gaps.push(
-          `Quote gate: source_url not in extracted pages for “${claim.slice(0, 80)}” (source_url=${source_url}).`,
-        );
-        continue;
-      }
-      if (!quoteInPages(quote, pages, source_url)) {
-        missing.push(entry);
-        gaps.push(
-          `Quote gate: quote not found in source_url page text for “${claim.slice(0, 80)}” (source_url=${source_url}). No cross-page fallback.`,
-        );
-        continue;
-      }
-    } else if (!quoteInPages(quote, pages)) {
+    if (!source_url.trim()) {
       missing.push(entry);
       gaps.push(
-        `Quote gate: quote not found in extracted page text for “${claim.slice(0, 80)}”.`,
+        `Quote gate: claim missing source_url for “${claim.slice(0, 80)}”. Unbound any-page match is not allowed.`,
+      );
+      continue;
+    }
+    if (!pageUrls.has(source_url)) {
+      missing.push(entry);
+      gaps.push(
+        `Quote gate: source_url not in extracted pages for “${claim.slice(0, 80)}” (source_url=${source_url}).`,
+      );
+      continue;
+    }
+    if (!quoteInPages(quote, pages, source_url)) {
+      missing.push(entry);
+      gaps.push(
+        `Quote gate: quote not found in source_url page text for “${claim.slice(0, 80)}” (source_url=${source_url}). No cross-page fallback.`,
       );
       continue;
     }

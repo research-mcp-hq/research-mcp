@@ -527,6 +527,28 @@ await test("MUST1: missing source page → fail", () => {
   assert.ok(miss.gaps.some((g) => /not in extracted pages|source_url/i.test(g)));
 });
 
+await test("MUST: empty source_url fails (no unbound any-page match)", () => {
+  const pages = defaultMockPages(OFF_GOLDEN);
+  const quote =
+    pages[0]!.text.match(/[^.!?]+[.!?]/)?.[0]?.trim() ?? pages[0]!.text.slice(0, 120);
+  const miss = verifyQuotes(
+    [
+      {
+        claim: "Model Context Protocol hosts talk to servers",
+        quote,
+        source_url: "",
+      },
+    ],
+    pages,
+    { query: OFF_GOLDEN },
+  );
+  assert.equal(miss.ok, false);
+  assert.ok(
+    miss.gaps.some((g) => /missing source_url|Unbound any-page/i.test(g)),
+    miss.gaps.join("; "),
+  );
+});
+
 await test("MUST2: query-irrelevant homepage sentences → not billable", async () => {
   const homepage: ExtractedPage[] = [
     {
