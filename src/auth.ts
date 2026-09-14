@@ -1,8 +1,14 @@
 import type { Request, Response, NextFunction } from "express";
+import { getLedgerDb } from "./billing/db.js";
+import { findActiveKeyByHash, hashApiKey } from "./billing/keys.js";
 
 export interface AuthContext {
   apiKey: string;
   keyId: string;
+  /** Set for customer (ledger) keys */
+  customerId?: string;
+  /** True when authenticated via env API_KEYS (ops; no ledger debit) */
+  breakGlass: boolean;
 }
 
 declare global {
@@ -39,22 +45,58 @@ export function extractApiKey(req: Request): string | undefined {
   return match?.[1]?.trim();
 }
 
+function keyIdFromPresented(presented: string): string {
+  if (presented.length <= 4) return `****${presented}`;
+  return `...${presented.slice(-4)}`;
+}
+
+/**
+ * Resolve presented key against env API_KEYS (break-glass) OR active api_keys hash.
+ */
+export function resolveAuth(presented: string): AuthContext | null {
+  const keys = getConfiguredApiKeys();
+  if (keys.has(presented)) {
+    return {
+      apiKey: presented,
+      keyId: keyIdFromPresented(presented),
+      breakGlass: true,
+    };
+  }
+
+  const db = getLedgerDb();
+  if (db) {
+    const row = findActiveKeyByHash(db, hashApiKey(presented));
+    if (row) {
+      return {
+        apiKey: presented,
+        keyId: row.key_prefix,
+        customerId: row.customer_id,
+        breakGlass: false,
+      };
+    }
+  }
+
+  return null;
+}
+
 /**
  * Require Authorization: Bearer <key> OR X-API-Key.
- * Keys come from env API_KEYS (comma-separated).
+ * Dual path: env API_KEYS (break-glass) OR active customer key hash in ledger DB.
  */
 export function requireApiKey(req: Request, res: Response, next: NextFunction): void {
   const keys = getConfiguredApiKeys();
-  if (keys.size === 0) {
+  const db = getLedgerDb();
+
+  if (keys.size === 0 && !db) {
     res.status(500).json({
       error: "server_misconfigured",
-      message: "API_KEYS env is empty; no keys configured",
+      message: "API_KEYS env is empty and no ledger DB; no keys configured",
     });
     return;
   }
 
   const presented = extractApiKey(req);
-  if (!presented || !keys.has(presented)) {
+  if (!presented) {
     res.status(401).json({
       error: "unauthorized",
       message: "Missing or invalid API key. Use Authorization: Bearer <key> or X-API-Key.",
@@ -62,8 +104,45 @@ export function requireApiKey(req: Request, res: Response, next: NextFunction): 
     return;
   }
 
-  const keyId =
-    presented.length <= 4 ? `****${presented}` : `...${presented.slice(-4)}`;
-  req.authContext = { apiKey: presented, keyId };
+  const ctx = resolveAuth(presented);
+  if (!ctx) {
+    res.status(401).json({
+      error: "unauthorized",
+      message: "Missing or invalid API key. Use Authorization: Bearer <key> or X-API-Key.",
+    });
+    return;
+  }
+
+  req.authContext = ctx;
+  next();
+}
+
+/** Checkout start: break-glass API_KEYS only (alpha). */
+export function requireBreakGlassApiKey(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const keys = getConfiguredApiKeys();
+  if (keys.size === 0) {
+    res.status(500).json({
+      error: "server_misconfigured",
+      message: "API_KEYS env is empty; break-glass required for checkout",
+    });
+    return;
+  }
+  const presented = extractApiKey(req);
+  if (!presented || !keys.has(presented)) {
+    res.status(401).json({
+      error: "unauthorized",
+      message: "Checkout requires a break-glass API_KEYS credential",
+    });
+    return;
+  }
+  req.authContext = {
+    apiKey: presented,
+    keyId: keyIdFromPresented(presented),
+    breakGlass: true,
+  };
   next();
 }

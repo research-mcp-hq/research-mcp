@@ -1,6 +1,6 @@
 # RUNBOOK — research-mcp
 
-Local MVP on the shared computer. No GitHub remote yet.
+Local MVP on the shared computer. Prepaid Stripe credits (test mode) + SQLite ledger.
 
 ## Verify (smoke)
 
@@ -70,7 +70,20 @@ Prepaid credit SKU (encoded in usage logger / docs):
 Quality bar fail = no charge. Sample/demo path = no charge (`estimatedCostUsd: 0`, `charge_usd: 0`, `billable: false`).  
 Snippet-only `LIVE_RESEARCH` leads = no charge.
 
-Metering remains a stdout stub until Stripe/x402.
+Metering: stdout JSON + SQLite ledger debit for customer keys (path C prepaid packs).
+
+### Billing (test mode)
+
+```bash
+# After setting .env from .env.example (sk_test_ + price placeholders + DATABASE_URL)
+npm run test:billing
+# expect: all billing tests passed
+
+# Local webhook (optional, when Stripe CLI + real test keys available):
+# stripe listen --forward-to localhost:3000/webhooks/stripe
+```
+
+Break-glass `API_KEYS` still work without Stripe. Customer keys (`rmcp_…`) are issued on paid Checkout webhook and revealed once on `/billing/success`.
 
 ## Git — first remote (when GitHub connector lands)
 

@@ -16,9 +16,9 @@ Short map of the v0 remote MCP server.
 ## Auth
 
 - Required on `/mcp`: `Authorization: Bearer <key>` **or** `X-API-Key: <key>`
-- Keys from env `API_KEYS` (comma-separated)
-- Missing/invalid → **401**; empty `API_KEYS` → **500** misconfigured
-- `/health` is open
+- **Dual path:** env `API_KEYS` (break-glass, no ledger debit) **or** customer `api_keys` row (sha256 hash, `status=active`)
+- Missing/invalid / revoked → **401**; empty `API_KEYS` **and** no ledger DB → **500** misconfigured
+- `/health` is open; billing pages are open; `POST /billing/checkout` requires break-glass
 
 ## Tools
 
@@ -44,23 +44,24 @@ Annotations (hints only — hosts must not treat as a sandbox):
 - **Off-golden brief/compare:** `mode=sample`, fixture-set anchors labeled sample-only, **not charged**.
 - **Optional live brief:** `LIVE_RESEARCH=1` → `research_brief` with `depth=quick` may attempt DuckDuckGo HTML snippets; falls back to sample on failure. Snippet-only → `billable=false`.
 
-## Metering stub + charge gate
+## Metering + prepaid credits (path C)
 
-`UsageLogger` (`src/usage.ts`) writes one JSON line per tool call to stdout:
-
-`requestId`, `tool`, `keyId` (last4), `latencyMs`, `estimatedTokens`, `estimatedCostUsd`, `charge_usd`, `billable`, `mode`, `timestamp`
-
-Charge only when:
+Charge gate unchanged (`src/usage.ts` `applyChargeGate`):
 
 1. **Golden-matched** (`meta.mode=golden`, `billable=true`), or
 2. **Live-fetched and quality-bar-passing** (`meta.mode=live`, `billable=true`)
 
-Otherwise `estimatedCostUsd: 0`, `charge_usd: 0`, `billable: false` (sample/demo path, quality-bar fail, snippet-only live).
+Otherwise `charge_usd: 0`, `billable: false` (sample / quality-fail / snippet) — **no ledger debit**.
 
-Estimated USD aligns to prepaid SKU stubs in `pricing-addendum.md` (Lite $0.25 / Standard $0.60 / Deep $1.50) when billable. Stripe / x402 can replace the logger later — no marketplace in v0.
+**Stripe Checkout** sells credit packs ($10 / $25 / $50). Webhook `checkout.session.completed` / `async_payment_succeeded` is the **sole** fulfill source (not `payment_intent.succeeded`). Ledger lives in SQLite (`DATABASE_URL=file:./data/ledger.sqlite`) via **sql.js** (pure JS; `better-sqlite3` native build unavailable on the Node 20 alpha box).
+
+Debits (customer keys only): lite **25¢**, standard **60¢**, deep **150¢**. Break-glass `API_KEYS` skip debit (`break_glass=true`). Insufficient → MCP tool error `insufficient_credits` (+ HTTP **402** helper in `src/billing/http402.ts`).
+
+Routes: `POST /webhooks/stripe` (raw body), `POST /billing/checkout`, `GET /billing/success|cancel`. No Customer Portal / Billing Credits / marketplace in v0.
 
 ## Eval
 
 - `npm run eval` — goldens on the 6-point ship rubric (no fabrication, density, confidence legal, must-include, must-not, honest gaps). Expect 10/10.
 - `npm run eval:off` — off-golden cases (mocked fetch): no invented 404/`found`, 403→blocked, sample billable=false.
 - `npm run eval:all` — both stages.
+- `npm run test:billing` — ledger/webhook/debit invariants (mocked Stripe; no live API).

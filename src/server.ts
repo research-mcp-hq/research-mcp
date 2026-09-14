@@ -1,6 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
-import { applyChargeGate, type UsageLogger } from "./usage.js";
+import {
+  applyChargeGate,
+  InsufficientCreditsError,
+  type UsageLogger,
+} from "./usage.js";
+import { getLedgerDb } from "./billing/db.js";
+import { assertSufficientCredits } from "./billing/ledger.js";
 import { runCompareOptions, runResearchBrief, runSourceLookup } from "./research/index.js";
 import { SERVER_NAME, VERSION } from "./version.js";
 import type { ResearchMeta } from "./types.js";
@@ -16,6 +22,8 @@ export interface ToolCallContext {
   requestId: string;
   keyId: string;
   usage: UsageLogger;
+  customerId?: string;
+  breakGlass?: boolean;
 }
 
 function jsonResult(data: unknown, meta?: Record<string, unknown>) {
@@ -26,8 +34,68 @@ function jsonResult(data: unknown, meta?: Record<string, unknown>) {
   };
 }
 
+function errorResult(code: string, message: string) {
+  return {
+    isError: true as const,
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify({ error: code, message }),
+      },
+    ],
+    structuredContent: { error: code, message },
+  };
+}
+
 function resultMeta(data: { meta?: ResearchMeta }): ResearchMeta | undefined {
   return data.meta;
+}
+
+function precheckCredits(
+  ctx: ToolCallContext,
+  tool: string,
+  depth?: string,
+): ReturnType<typeof errorResult> | null {
+  if (ctx.breakGlass || !ctx.customerId) return null;
+  const db = getLedgerDb();
+  if (!db) return null;
+  try {
+    assertSufficientCredits(db, ctx.customerId, tool, depth);
+    return null;
+  } catch (err) {
+    if (err instanceof InsufficientCreditsError) {
+      return errorResult("insufficient_credits", err.message);
+    }
+    throw err;
+  }
+}
+
+function logUsage(
+  ctx: ToolCallContext,
+  tool: string,
+  depth: string | undefined,
+  latencyMs: number,
+  est: ReturnType<typeof applyChargeGate>,
+): ReturnType<typeof errorResult> | null {
+  try {
+    ctx.usage.log({
+      requestId: ctx.requestId,
+      tool,
+      keyId: ctx.keyId,
+      latencyMs,
+      ...est,
+      depth,
+      customerId: ctx.customerId,
+      breakGlass: ctx.breakGlass,
+      timestamp: new Date().toISOString(),
+    });
+    return null;
+  } catch (err) {
+    if (err instanceof InsufficientCreditsError) {
+      return errorResult("insufficient_credits", err.message);
+    }
+    throw err;
+  }
 }
 
 /**
@@ -53,18 +121,15 @@ export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
       annotations: TOOL_ANNOTATIONS,
     },
     async ({ query, depth, as_of_hint }) => {
+      const blocked = precheckCredits(ctx, "research_brief", depth);
+      if (blocked) return blocked;
+
       const started = Date.now();
       const result = await runResearchBrief({ query, depth, as_of_hint });
       const latencyMs = Date.now() - started;
       const est = applyChargeGate("research_brief", depth, resultMeta(result));
-      ctx.usage.log({
-        requestId: ctx.requestId,
-        tool: "research_brief",
-        keyId: ctx.keyId,
-        latencyMs,
-        ...est,
-        timestamp: new Date().toISOString(),
-      });
+      const debitErr = logUsage(ctx, "research_brief", depth, latencyMs, est);
+      if (debitErr) return debitErr;
       return jsonResult(result, {
         requestId: ctx.requestId,
         latencyMs,
@@ -88,18 +153,15 @@ export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
       annotations: TOOL_ANNOTATIONS,
     },
     async ({ options, question, criteria }) => {
+      const blocked = precheckCredits(ctx, "compare_options");
+      if (blocked) return blocked;
+
       const started = Date.now();
       const result = runCompareOptions({ options, question, criteria });
       const latencyMs = Date.now() - started;
       const est = applyChargeGate("compare_options", undefined, resultMeta(result));
-      ctx.usage.log({
-        requestId: ctx.requestId,
-        tool: "compare_options",
-        keyId: ctx.keyId,
-        latencyMs,
-        ...est,
-        timestamp: new Date().toISOString(),
-      });
+      const debitErr = logUsage(ctx, "compare_options", undefined, latencyMs, est);
+      if (debitErr) return debitErr;
       return jsonResult(result, {
         requestId: ctx.requestId,
         latencyMs,
@@ -122,18 +184,15 @@ export function createResearchMcpServer(ctx: ToolCallContext): McpServer {
       annotations: TOOL_ANNOTATIONS,
     },
     async ({ claim_or_url, ask }) => {
+      const blocked = precheckCredits(ctx, "source_lookup");
+      if (blocked) return blocked;
+
       const started = Date.now();
       const result = await runSourceLookup({ claim_or_url, ask });
       const latencyMs = Date.now() - started;
       const est = applyChargeGate("source_lookup", undefined, resultMeta(result));
-      ctx.usage.log({
-        requestId: ctx.requestId,
-        tool: "source_lookup",
-        keyId: ctx.keyId,
-        latencyMs,
-        ...est,
-        timestamp: new Date().toISOString(),
-      });
+      const debitErr = logUsage(ctx, "source_lookup", undefined, latencyMs, est);
+      if (debitErr) return debitErr;
       return jsonResult(result, {
         requestId: ctx.requestId,
         latencyMs,

@@ -13,7 +13,8 @@
     "dev": "tsx watch src/index.ts",
     "eval": "tsx evals/score-goldens.ts",
     "eval:off": "tsx evals/score-off-golden.ts",
-    "eval:all": "npm run eval && npm run eval:off"
+    "eval:all": "npm run eval && npm run eval:off",
+    "test:billing": "tsx evals/billing.test.ts"
   },
   "keywords": [
     "mcp",
@@ -26,11 +27,14 @@
     "@modelcontextprotocol/node": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
     "express": "^5.2.1",
+    "sql.js": "^1.14.2",
+    "stripe": "^22.6.2",
     "zod": "^4.6.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^22.20.2",
+    "@types/sql.js": "^1.4.11",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2"
   }
