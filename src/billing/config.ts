@@ -72,9 +72,12 @@ export function requireStripeBillingEnv(): StripeBillingEnv {
     );
   }
 
-  if (stripeSecretKey.startsWith("sk_live_")) {
+  if (
+    stripeSecretKey.startsWith("sk_live_") &&
+    process.env.STRIPE_ALLOW_LIVE?.trim() !== "1"
+  ) {
     throw new Error(
-      "Live Stripe keys are not enabled yet; use sk_test_ keys only until go-live approval.",
+      "Live Stripe keys require STRIPE_ALLOW_LIVE=1; use sk_test_ keys until go-live is explicitly enabled.",
     );
   }
 
