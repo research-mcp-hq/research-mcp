@@ -1,16 +1,14 @@
-# www/ — researchmcp.dev (Cloudflare Pages)
+# www/ — stub only (not Cloudflare Pages)
 
-Static marketing homepage. **No build step.**
+**Pages source of truth:** [`research-mcp-hq/www`](https://github.com/research-mcp-hq/www) → `public/`.  
+Live site: **https://researchmcp.dev**
 
-## Cloudflare Pages settings
-- **Root directory:** `www`
-- **Build command:** (empty)
-- **Build output directory:** `/` (or leave default when root is `www`)
-- **Framework preset:** None
+This `www/` directory in `research-mcp` is a **stub / pointer only**. Do **not** point Cloudflare Pages at this folder.
 
-Custom domain: `researchmcp.dev` (+ optional `www`). See `deploy/CLOUDFLARE_PAGES.md`.
+| URL | Purpose |
+| --- | --- |
+| https://researchmcp.dev | Marketing homepage (Pages SoT) |
+| https://mcp.researchmcp.dev/mcp | MCP API |
+| https://mcp.researchmcp.dev/health | Health |
 
-MCP API stays on Fly: `https://research-mcp-mhh.fly.dev/mcp`.
-
-## Copy source
-Adapted from Growth stub (`growth/www-researchmcp-dev/`) + listing-copy v2.1 locked claims.
+Redirects in `_redirects` are for local/docs convenience if someone opens this tree; they are not the live site config.
