@@ -1,7 +1,9 @@
-# Fly.io app config — replace app name after `fly apps create`
+# Fly.io app config
+# PLACEHOLDER: set app to <APP_NAME> after Michael creates the Fly app (must be unique).
 # Docs: https://fly.io/docs/reference/configuration/
+# Full steps: deploy/FLY_DEPLOY.md
 
-app = "research-mcp"
+app = "research-mcp"  # <-- replace with <APP_NAME> if different
 primary_region = "iad"
 
 [build]

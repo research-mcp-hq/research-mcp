@@ -1,6 +1,6 @@
 # Hosting plan — research-mcp
 
-## Default: Fly.io
+## Host locked: Fly.io (2026-09-14)
 
 | Factor | Why Fly |
 | --- | --- |
@@ -39,9 +39,12 @@ Env:
 
 ## Blockers needing Michael
 
-1. Fly.io account (or approve Railway instead) — no paid account created by agents
-2. Prod `API_KEYS` values (and optional custom domain / DNS)
-3. GitHub Actions enabled on the private repo + connector/auth so agents can open PRs
+1. Fly.io **account** (host already locked) — agents must not create/billing-auth alone
+2. Prod `API_KEYS` + confirm `<APP_NAME>`
+3. Optional custom domain / DNS
+4. PAT/`workflow` scope (or human push) for `.github/workflows/ci.yml`
+
+Step-by-step: see [FLY_DEPLOY.md](./FLY_DEPLOY.md).
 
 ## What ops can do without Michael
 
