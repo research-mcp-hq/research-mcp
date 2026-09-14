@@ -61,3 +61,7 @@ Step-by-step: see [FLY_DEPLOY.md](./FLY_DEPLOY.md).
 ## Docker on the shared box
 
 If `docker` CLI / daemon is unavailable here, **do not block deploy** — build the image on **GitHub Actions** (CI job) and/or **Fly builders** (`fly deploy` builds remotely). Local container verify is optional.
+
+## SQLite persistence
+
+See [FLY_VOLUME.md](./FLY_VOLUME.md) before enabling Stripe ledger credits on Fly.
