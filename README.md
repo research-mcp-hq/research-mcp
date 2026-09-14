@@ -1,63 +1,102 @@
 # research-mcp
 
-Paid deep research-as-a-service **remote MCP** (MVP).
+Paid **cited research** remote MCP for coding / research agents (API key auth, not OAuth).
 
-Other agents call three tools — `research_brief`, `compare_options`, `source_lookup` — with API key auth and a usage-log stub for later Stripe / x402 metering.
+**Why pay:** query-tied excerpt packs from allowlisted primaries; **refuse uncited** — that call is **$0**. Prepaid packs; meters only on billable successes.
 
-Quality bars (ship = **6/6** on every golden): [`quality-bars.md`](./quality-bars.md), niche addendum [`niche-goldens.md`](./niche-goldens.md).
+> Repo may be private; treat this README as the agent-facing contract. Live Fly host is unchanged.
 
-## Quickstart
+## MCP URL (production)
 
-```bash
-cd /workspace/research-mcp
-npm install
-npm run build
-API_KEYS=dev-key-1 npm start
+```
+https://research-mcp-mhh.fly.dev/mcp
 ```
 
-Health:
+Health: `https://research-mcp-mhh.fly.dev/health`  
+Server card: `https://research-mcp-mhh.fly.dev/.well-known/mcp/server-card.json`  
+Credits meter: `GET https://research-mcp-mhh.fly.dev/billing/credits` (auth’d)
 
-```bash
-curl -s http://127.0.0.1:3000/health
-# {"status":"ok","version":"0.1.0"}
+```json
+{
+  "mcpServers": {
+    "research-mcp": {
+      "url": "https://research-mcp-mhh.fly.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}
 ```
-
-Dev (hot reload):
-
-```bash
-API_KEYS=dev-key-1 npm run dev
-```
-
-Evals:
-
-```bash
-npm run eval      # goldens G1–G7 + N1–N3 → 10/10 ship_bar
-npm run eval:off  # off-golden lookup/sample charge-gate cases (mocked fetch)
-npm run eval:all  # goldens + off-golden + pipeline
-npm run test:pipeline  # mock live brief + COGS caps
-```
-
-## Env vars
-
-| Var | Required | Description |
-| --- | --- | --- |
-| `API_KEYS` | yes (for `/mcp`) | Comma-separated API keys |
-| `PORT` | no | Default `3000` |
-| `HOST` | no | Default `0.0.0.0` |
-| `LIVE_RESEARCH` | no | Set `1` to run search→extract→synthesize for `research_brief` `quick`/`standard` (COGS-capped; sample fallback) |
-| `COGS_CAP_CENTS_*` | no | Hard COGS caps per SKU (defaults 10 / 25 / 50). Over-cap → `billable=false` |
-| `PARALLEL_API_KEY` / `EXA_API_KEY` | no | Placeholders — **unused** until keys are provided |
 
 ## Auth
 
-Send on every MCP HTTP request:
+Every `/mcp` and `/billing/credits` request:
 
 - `Authorization: Bearer <key>` **or**
 - `X-API-Key: <key>`
 
-## Example: list tools
+Keys: prepaid customer key (from Checkout success page) **or** break-glass `API_KEYS` (ops; no ledger debit).
+
+## Pricing (locked)
+
+| Pack | Credits |
+| --- | --- |
+| **$10** starter | 1000¢ |
+| **$25** standard | 2500¢ |
+| **$50** pro | 5000¢ |
+
+| Meter (billable success) | Price |
+| --- | --- |
+| lite (`source_lookup`, `research_brief` depth=quick) | **$0.25** |
+| standard (`research_brief` depth=standard) | **$0.60** |
+| deep (preview only) | **$1.50** published meter; preview path always **$0** |
+
+**fail = $0:** sample/demo, quote-gate fail, density fail, COGS abort, cancel, depth-mismatched golden, preview/parked paths (`meta.billable=false`, `charge_usd=0`).
+
+Inspect balance + tables: `GET /billing/credits` → `balance_cents`, `packs`, `meters_usd`, `fail_usd: 0`. Break-glass returns `{ break_glass: true, balance_cents: null }` (no fake balance).
+
+## When to call each tool
+
+### Live (default paid surface)
+
+| Tool | Call when | Do not |
+| --- | --- | --- |
+| **`research_brief`** | You need cited, query-tied excerpt packs on AI infra / MCP / security. `depth=quick` ($0.25) or `depth=standard` ($0.60). | Do not use `depth=deep` (parked / sample only unless preview flag). |
+| **`source_lookup`** | You have **one** URL or claim to fetch/verify. Lite $0.25. | Do not use as open-web search or multi-source synthesis. |
+
+Both return the shared envelope: `tldr`, `body`, `confidence`, `sources`, `gaps`, `as_of`, plus `schema_version` (`2026-09-14`). Optional `fail_gate: { reason, retryable }`, `claims` / excerpts, `retrieved_at`. If quotes fail verification on `source_url`, the run is **refused and not billed**.
+
+### Preview / parked (`ENABLE_PREVIEW_TOOLS=1`)
+
+| Tool / path | Behavior |
+| --- | --- |
+| **`compare_options`** | Registered only with the flag. **Always $0** / `billable=false`. No live path — prefer `research_brief`. |
+| **`depth=deep`** | Allowed only with the flag. **Always $0**. Soft-reserve never demands full deep SKU. |
+
+Without the flag: `compare_options` is **not** registered; `depth=deep` is rejected (`preview_required`). Directory card still says do-not-call for compare/deep.
+
+**No stub billing. No 25-tool kitchen sink** — two live tools by default.
+
+## Published contract
+
+- Schema: [`docs/contract/schema.json`](./docs/contract/schema.json)
+- Examples: [`docs/contract/examples/happy-research-brief.json`](./docs/contract/examples/happy-research-brief.json), [`fail-gate.json`](./docs/contract/examples/fail-gate.json)
+- HTTP header on responses: `X-Research-MCP-Schema-Version: 2026-09-14`
+- Tool notes: [`docs/TOOLS.md`](./docs/TOOLS.md)
+
+## Quickstart (local)
 
 ```bash
+cd /workspace/research-mcp
+npm install && npm run build
+API_KEYS=dev-key-1 npm start
+# optional live brief path:
+LIVE_RESEARCH=1 API_KEYS=dev-key-1 npm start
+```
+
+```bash
+curl -s http://127.0.0.1:3000/health
 curl -s -X POST http://127.0.0.1:3000/mcp \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
@@ -65,49 +104,41 @@ curl -s -X POST http://127.0.0.1:3000/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-## Cursor / Claude — remote MCP snippet
+## Env (high-signal)
 
-Point the client at streamable HTTP on port 3000:
+| Var | Notes |
+| --- | --- |
+| `API_KEYS` | Break-glass keys (comma-separated) |
+| `LIVE_RESEARCH=1` | Live search→extract→synthesize→quote gate for quick/standard |
+| `ENABLE_PREVIEW_TOOLS=1` | Register compare + allow deep (always $0) |
+| `DATABASE_URL` | SQLite ledger for customer keys / credits |
+| Stripe `STRIPE_*` / pack price IDs | Prepaid Checkout (test until go-live) |
 
-```json
-{
-  "mcpServers": {
-    "research-mcp": {
-      "url": "http://localhost:3000/mcp",
-      "headers": {
-        "Authorization": "Bearer dev-key-1"
-      }
-    }
-  }
-}
-```
-
-(Exact client config keys vary; use the remote/HTTP MCP install path for your host.)
-
-## Docker
+## Tests
 
 ```bash
-docker build -t research-mcp .
-docker run --rm -p 3000:3000 -e API_KEYS=dev-key-1 research-mcp
+npm run eval:all      # goldens + off-golden + pipeline
+npm run test:billing  # ledger / webhook / credits meter
 ```
-
-## Live research (optional)
-
-When `LIVE_RESEARCH=1`, off-golden `research_brief` with `depth=quick` or `standard` runs search → fetch/extract (page cap) → synthesize → **quote gate**. Live bills only when density+primary allowlist OK **and** every load-bearing claim has a verified quote on its `source_url` page **and** claim/quote share query tokens (`meta.billable=true`). Soft-reserve demands full SKU on this path. Quote-fail / COGS over-cap → `$0`. Failure falls back to sample. Deep stays sample in this phase. Tests inject `MockProvider` (no network). Parallel/Exa are not called.
-
-## Metering stub
-
-Each tool call logs a JSON line to stdout (`type: usage`) with `requestId`, `tool`, `keyId`, `latencyMs`, `estimatedTokens`, `estimatedCostUsd`, `timestamp`. Prepaid rate stubs: Lite/lookup **$0.25**, Standard **$0.60**, Deep **$1.50** (see `pricing-addendum.md`).
 
 ## Layout
 
-- `src/index.ts` — Express + auth + `/health` + `/mcp`
-- `src/server.ts` — MCP tool registration
-- `src/research/` — samples, goldens, live pipeline + providers
-- `evals/score-goldens.ts` — 6/6 rubric
-- `docs/TOOLS.md` — schemas
+- `src/server.ts` — tool registration (finish-or-hide)
+- `src/billing/credits.ts` — `GET /billing/credits` (T10 visible meter)
+- `src/contract.ts` — `schema_version` + `fail_gate`
+- `docs/contract/` — published JSON Schema + examples
 - `ARCHITECTURE.md` — transport / auth / metering
+
+## Discovery
+
+| Surface | URL / ID |
+| --- | --- |
+| GitHub | https://github.com/research-mcp-hq/research-mcp |
+| Fly MCP | https://research-mcp-mhh.fly.dev/mcp |
+| Smithery (discovery only) | https://smithery.ai/servers/research-mcp-hq/research-mcp |
+
+Homepage for listings: **GitHub**, not Smithery.
 
 ## Ops
 
-Verify / push prep: see [RUNBOOK.md](./RUNBOOK.md).
+See [RUNBOOK.md](./RUNBOOK.md). License: [MIT](./LICENSE).

@@ -1,0 +1,31 @@
+{
+  "query": "off-golden live brief that fails quote verification",
+  "depth": "standard",
+  "tldr": "Live research did not verify load-bearing quotes on source_url pages.",
+  "body": {
+    "mode": "live",
+    "billable": false,
+    "density_confidence_ok": true,
+    "quotes_verified": false,
+    "quote_gate": {
+      "ok": false,
+      "verified": 0,
+      "missing": 2
+    }
+  },
+  "confidence": "unknown",
+  "sources": [],
+  "gaps": [
+    "Quote gate failed: one or more load-bearing claims lack verified quotes. Not charged (billable=false)."
+  ],
+  "as_of": "2026-09-12",
+  "schema_version": "2026-09-14",
+  "meta": {
+    "mode": "live",
+    "billable": false
+  },
+  "fail_gate": {
+    "reason": "quote_gate_failed",
+    "retryable": false
+  }
+}

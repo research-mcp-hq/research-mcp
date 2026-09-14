@@ -111,8 +111,8 @@ git commit -m "Initial research-mcp MVP"
 When you have the real remote URL from Dodger/GitHub:
 
 ```bash
-git remote add origin git@github.com:<OWNER>/<REPO>.git
-# or: https://github.com/<OWNER>/<REPO>.git
+git remote add origin git@github.com:research-mcp-hq/research-mcp.git
+# or: https://github.com/research-mcp-hq/research-mcp.git
 git branch -M main
 git push -u origin main
 ```

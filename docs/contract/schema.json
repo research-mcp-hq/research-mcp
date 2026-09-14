@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://research-mcp-mhh.fly.dev/docs/contract/schema.json",
+  "title": "research-mcp published contract",
+  "description": "Tool I/O, shared envelope, and errors. schema_version constant: 2026-09-14.",
+  "definitions": {
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "unknown"]
+    },
+    "sourceType": {
+      "type": "string",
+      "enum": ["primary", "secondary"]
+    },
+    "researchMode": {
+      "type": "string",
+      "enum": ["golden", "sample", "live"]
+    },
+    "failGate": {
+      "type": "object",
+      "required": ["reason", "retryable"],
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "Machine-readable gate failure reason (e.g. quote_gate_failed, cogs_cap_exceeded, sample_path)."
+        },
+        "retryable": {
+          "type": "boolean",
+          "description": "True when a later retry might succeed (cancel, COGS config)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "claimExcerpt": {
+      "type": "object",
+      "required": ["claim", "quote", "source_url"],
+      "properties": {
+        "claim": { "type": "string" },
+        "quote": { "type": "string" },
+        "source_url": { "type": "string", "format": "uri" }
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["title", "url", "publisher", "accessed", "type", "supports"],
+      "properties": {
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "publisher": { "type": "string" },
+        "accessed": { "type": "string" },
+        "type": { "$ref": "#/definitions/sourceType" },
+        "supports": { "type": "string" },
+        "source": { "type": "string", "enum": ["cached", "live"] },
+        "retrieved_at": {
+          "type": "string",
+          "description": "ISO-8601 when the page body was retrieved, if known."
+        }
+      },
+      "additionalProperties": true
+    },
+    "researchMeta": {
+      "type": "object",
+      "required": ["mode", "billable"],
+      "properties": {
+        "mode": { "$ref": "#/definitions/researchMode" },
+        "billable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "envelope": {
+      "type": "object",
+      "required": ["tldr", "body", "confidence", "sources", "gaps", "as_of", "schema_version"],
+      "properties": {
+        "tldr": { "type": "string" },
+        "body": {},
+        "confidence": { "$ref": "#/definitions/confidence" },
+        "sources": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/source" }
+        },
+        "gaps": { "type": "array", "items": { "type": "string" } },
+        "as_of": { "type": "string" },
+        "schema_version": {
+          "type": "string",
+          "const": "2026-09-14"
+        },
+        "meta": { "$ref": "#/definitions/researchMeta" },
+        "fail_gate": { "$ref": "#/definitions/failGate" },
+        "retrieved_at": { "type": "string" },
+        "claims": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/claimExcerpt" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "toolError": {
+      "type": "object",
+      "required": ["error", "message"],
+      "properties": {
+        "error": {
+          "type": "string",
+          "enum": [
+            "unauthorized",
+            "insufficient_credits",
+            "preview_required",
+            "server_misconfigured",
+            "billing_misconfigured"
+          ]
+        },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "researchBriefInput": {
+      "type": "object",
+      "required": ["query", "depth"],
+      "properties": {
+        "query": { "type": "string" },
+        "depth": {
+          "type": "string",
+          "enum": ["quick", "standard"],
+          "description": "Default publish surface. depth=deep requires ENABLE_PREVIEW_TOOLS=1 and is always $0."
+        },
+        "as_of_hint": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "researchBriefOutput": {
+      "allOf": [
+        { "$ref": "#/definitions/envelope" },
+        {
+          "type": "object",
+          "required": ["query", "depth"],
+          "properties": {
+            "query": { "type": "string" },
+            "depth": { "type": "string", "enum": ["quick", "standard", "deep"] }
+          }
+        }
+      ]
+    },
+    "sourceLookupInput": {
+      "type": "object",
+      "required": ["claim_or_url", "ask"],
+      "properties": {
+        "claim_or_url": { "type": "string" },
+        "ask": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "sourceLookupOutput": {
+      "allOf": [
+        { "$ref": "#/definitions/envelope" },
+        {
+          "type": "object",
+          "required": ["claim_or_url", "ask", "verdict", "http_status"],
+          "properties": {
+            "claim_or_url": { "type": "string" },
+            "ask": { "type": "string" },
+            "verdict": {
+              "type": "string",
+              "enum": ["found", "not_found", "moved", "conflicting", "blocked", "unaudited"]
+            },
+            "http_status": { "type": ["integer", "null"] }
+          }
+        }
+      ]
+    },
+    "compareOptionsInput": {
+      "type": "object",
+      "required": ["options", "question", "criteria"],
+      "properties": {
+        "options": { "type": "array", "items": { "type": "string" }, "minItems": 2 },
+        "question": { "type": "string" },
+        "criteria": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      },
+      "additionalProperties": false,
+      "description": "Preview only when ENABLE_PREVIEW_TOOLS=1; always billable=false."
+    },
+    "creditsResponse": {
+      "type": "object",
+      "required": ["schema_version", "packs", "meters_usd", "fail_usd"],
+      "properties": {
+        "schema_version": { "const": "2026-09-14" },
+        "balance_cents": { "type": ["integer", "null"] },
+        "balance_usd": { "type": ["number", "null"] },
+        "packs": {
+          "type": "object",
+          "properties": {
+            "starter": { "const": 1000 },
+            "standard": { "const": 2500 },
+            "pro": { "const": 5000 }
+          }
+        },
+        "meters_usd": {
+          "type": "object",
+          "properties": {
+            "lite": { "const": 0.25 },
+            "standard": { "const": 0.6 },
+            "deep": { "const": 1.5 }
+          }
+        },
+        "fail_usd": { "const": 0 },
+        "break_glass": { "type": "boolean" }
+      }
+    }
+  }
+}

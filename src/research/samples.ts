@@ -229,10 +229,12 @@ export function isGoldenBriefQuery(query: string): boolean {
 
 /** True when the path can still bill (full SKU precheck warranted). */
 export function briefPathMayBeBillable(query: string, depth: Depth): boolean {
+  // Preview/parked depth=deep never soft-reserves a full SKU (always $0).
+  if (depth === "deep") return false;
   const g = matchBriefGolden(query);
   if (g) return depth === GOLDEN_BRIEF_AUTHORED_DEPTH;
   // Live quick/standard MAY bill when quote gate + density pass (P2).
-  // Soft-reserve full SKU when LIVE_RESEARCH=1; deep stays sample.
+  // Soft-reserve full SKU when LIVE_RESEARCH=1.
   if (
     (depth === "standard" || depth === "quick") &&
     process.env.LIVE_RESEARCH === "1"

@@ -226,4 +226,28 @@ API_KEYS=                        # break-glass; keep alongside customer keys
 - Billing Credits / Meters / Subscriptions  
 - Marketplace / Connect  
 - Auto refund webhook → ledger (manual process in brief §3)  
-- Messaging Slack/email to humans  
+- Messaging Slack/email to humans
+
+---
+
+## T10 — Auth’d credits read (visible meter)
+
+**Goal:** Smallest public ledger read so callers can see remaining credits + locked SKU table. No price changes.
+
+**Files (suggested):**
+- `src/billing/credits.ts` — handler
+- `src/index.ts` — `GET /billing/credits` behind customer-key auth
+
+**Behavior:**
+- Auth: customer API key → resolve `customer_id` → `getBalanceCents`
+- JSON: `balance_cents`, pack table ($10/$25/$50 → cents), meter table (lite/standard/deep), `fail_usd: 0`
+- Optional: last usage/gate fields if cheap to store
+- Break-glass keys: `403` or `{ break_glass: true, balance_cents: null }`
+
+**Acceptance:**
+- [ ] Customer key returns current balance
+- [ ] No SKU/pack amount changes
+- [ ] Documented in `docs/visible-meter.md` + Growth README pointer
+
+**Out of scope:** Customer Portal, Billing Credits, marketplace metering, Michael ping
+

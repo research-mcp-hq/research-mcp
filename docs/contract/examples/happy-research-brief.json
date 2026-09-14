@@ -1,0 +1,35 @@
+{
+  "query": "Who created and who maintains the Model Context Protocol?",
+  "depth": "standard",
+  "tldr": "MCP was co-created by David Soria Parra and Justin Spahr-Summers; stewardship moved to the Agentic AI Foundation.",
+  "body": {
+    "mode": "golden",
+    "billable": true
+  },
+  "confidence": "high",
+  "sources": [
+    {
+      "title": "Model Context Protocol specification",
+      "url": "https://modelcontextprotocol.io",
+      "publisher": "MCP",
+      "accessed": "2026-09-12",
+      "type": "primary",
+      "supports": "Authorship and protocol identity",
+      "retrieved_at": "2026-09-12T00:00:00.000Z"
+    }
+  ],
+  "gaps": [],
+  "as_of": "2026-09-12",
+  "schema_version": "2026-09-14",
+  "meta": {
+    "mode": "golden",
+    "billable": true
+  },
+  "claims": [
+    {
+      "claim": "MCP was co-created by David Soria Parra and Justin Spahr-Summers.",
+      "quote": "David Soria Parra and Justin Spahr-Summers",
+      "source_url": "https://modelcontextprotocol.io"
+    }
+  ]
+}
