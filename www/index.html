@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Research MCP — researchmcp.dev</title>
+  <meta name="description" content="Remote MCP for agents: cited, query-tied excerpt packs on MCP + agent infra. Prepaid packs; fail=$0." />
+  <meta property="og:title" content="Research MCP — researchmcp.dev" />
+  <meta property="og:description" content="Cited research MCP for coding agents — MCP + agent infra. Fail=$0." />
+  <meta property="og:url" content="https://researchmcp.dev/" />
+  <link rel="canonical" href="https://researchmcp.dev/" />
+  <style>
+    :root { color-scheme: light dark; --fg:#0f172a; --muted:#475569; --border:#e2e8f0; --bg:#fff; --card:#f8fafc; --accent:#0ea5e9; --code-bg:#0f172a; --code-fg:#e2e8f0; }
+    @media (prefers-color-scheme: dark) {
+      :root { --fg:#e2e8f0; --muted:#94a3b8; --border:#334155; --bg:#0b1220; --card:#111827; --accent:#38bdf8; --code-bg:#020617; --code-fg:#e2e8f0; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; font:16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color:var(--fg); background:var(--bg); }
+    main { max-width:720px; margin:0 auto; padding:2.5rem 1.25rem 4rem; }
+    h1 { font-size:1.75rem; line-height:1.2; margin:0 0 .5rem; }
+    h2 { font-size:1.1rem; margin:2rem 0 .75rem; }
+    p, li { color:var(--muted); }
+    .lead { font-size:1.05rem; color:var(--fg); }
+    .pill { display:inline-block; font-size:.75rem; padding:.2rem .55rem; border:1px solid var(--border); border-radius:999px; color:var(--muted); margin-right:.35rem; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1rem 1.1rem; margin:1rem 0; }
+    table { width:100%; border-collapse:collapse; font-size:.95rem; }
+    th, td { text-align:left; padding:.45rem .35rem; border-bottom:1px solid var(--border); vertical-align:top; }
+    th { color:var(--fg); font-weight:600; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.85rem; }
+    pre { background:var(--code-bg); color:var(--code-fg); padding:1rem; border-radius:10px; overflow:auto; }
+    a { color:var(--accent); }
+    .links a { margin-right:1rem; display:inline-block; margin-bottom:.35rem; }
+    footer { margin-top:3rem; padding-top:1rem; border-top:1px solid var(--border); font-size:.85rem; color:var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <p><span class="pill">Remote MCP</span><span class="pill">API key auth</span><span class="pill">fail = $0</span><span class="pill">LIVE_RESEARCH=1</span></p>
+    <h1>Research MCP</h1>
+    <p class="lead">Cited, query-tied excerpt packs for other agents — focused on <strong>MCP + agent infra</strong> (hosts, auth, tool-safety). Not a human chat product. Not Parallel/Exa or a “decision-ready” synthesizer.</p>
+
+    <div class="card">
+      <p><strong>What you get:</strong> shared envelope (<code>tldr</code>, <code>body</code>, <code>confidence</code>, <code>sources</code>, <code>gaps</code>, <code>as_of</code>) plus caller-visible gate (<code>meta.billable</code>, <code>quotes_verified</code>, <code>quote_gate</code>). Live path: search → fetch → quote gate. Billable only when density + confidence bar and quotes verify on the claim’s <code>source_url</code>. Miss the bar → <strong>$0</strong>.</p>
+      <p>We log <strong>category mix</strong> (tool, topic bucket, host, billable vs fail) — <strong>not your questions</strong>.</p>
+    </div>
+
+    <h2>Tools</h2>
+    <table>
+      <thead><tr><th>Tool</th><th>Today</th></tr></thead>
+      <tbody>
+        <tr><td><code>research_brief</code></td><td><strong>Live</strong> quick/standard cited excerpt packs when the gate passes (<code>LIVE_RESEARCH=1</code> on). Not sample-only for those depths. <code>depth=deep</code> stays parked / sample — do not call.</td></tr>
+        <tr><td><code>source_lookup</code></td><td><strong>Live</strong> fetch/verify a specific source URL.</td></tr>
+        <tr><td><code>compare_options</code></td><td>Parked for live — do not call; golden matches only today.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="install">Install (Cursor / remote HTTP)</h2>
+    <pre>{
+  "mcpServers": {
+    "research-mcp": {
+      "url": "https://research-mcp-mhh.fly.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_KEY"
+      }
+    }
+  }
+}</pre>
+    <p>Auth: <code>Authorization: Bearer …</code> or <code>X-API-Key</code>. Balance: <code>GET /billing/credits</code> (auth’d). Checkout: <code>POST /billing/checkout</code> on the same Fly host.</p>
+
+    <h2>Pricing</h2>
+    <table>
+      <thead><tr><th>Meter</th><th>Price</th></tr></thead>
+      <tbody>
+        <tr><td>Lite</td><td>$0.25 / successful call</td></tr>
+        <tr><td>Standard</td><td>$0.60</td></tr>
+        <tr><td>Deep</td><td>$1.50 <em>(parked / sample — not live-billed)</em></td></tr>
+        <tr><td>Quality-bar fail</td><td><strong>$0</strong></td></tr>
+        <tr><td>Prepaid packs</td><td>$10 / $25 / $50</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Links</h2>
+    <p class="links">
+      <a href="https://research-mcp-mhh.fly.dev/mcp">MCP endpoint</a>
+      <a href="https://research-mcp-mhh.fly.dev/health">Health</a>
+      <a href="https://github.com/research-mcp-hq/research-mcp">GitHub</a>
+      <a href="https://smithery.ai/servers/research-mcp-hq/research-mcp">Smithery (discovery only)</a>
+    </p>
+    <p>Official Registry: <code>io.github.research-mcp-hq/research-mcp</code>. Canonical site: <strong>researchmcp.dev</strong>. MCP API stays on Fly for now; this site is the marketing homepage.</p>
+
+    <footer>
+      research-mcp-hq · researchmcp.dev · Growth stub adapted for Cloudflare Pages · quotes may include page chrome; we do not claim Parallel/Exa synthesis.
+    </footer>
+  </main>
+</body>
+</html>

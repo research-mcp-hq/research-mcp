@@ -6,6 +6,10 @@ Paid **cited research** remote MCP for coding / research agents (API key auth, n
 
 > Repo may be private; treat this README as the agent-facing contract. Live Fly host is unchanged.
 
+## Marketing site (Cloudflare Pages)
+
+Static landing for **https://researchmcp.dev** lives in [`www/`](./www/) (no build). Point Cloudflare Pages **root directory** at `/www`. MCP API remains on Fly — see `deploy/CLOUDFLARE_PAGES.md`.
+
 ## MCP URL (production)
 
 ```
