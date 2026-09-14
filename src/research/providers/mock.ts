@@ -19,27 +19,29 @@ export function defaultMockPages(query = "the research topic"): ExtractedPage[] 
   const body = (lead: string) =>
     `${lead} Query context: ${q}. Published for the 2026 research set. ` + FILLER.repeat(6);
 
+  // URLs use primary allowlist hosts so density scaffolding can pass under the
+  // tightened classifySourceType heuristic (extractive still never bills).
   return [
     {
-      url: "https://docs.example.com/topic/specification",
+      url: "https://modelcontextprotocol.io/specification/2026-03-15",
       title: "Official specification",
-      publisher: "Example Docs",
+      publisher: "modelcontextprotocol.io",
       date: "2026-03-15",
       text: body(
         "Official specification published 2026-03-15. Defines roles, transports, and versioning.",
       ),
     },
     {
-      url: "https://www.example.com/press/topic-2026",
+      url: "https://www.anthropic.com/news/topic-2026",
       title: "First-party press announcement",
-      publisher: "Example Press",
+      publisher: "Anthropic",
       date: "2026-01-20",
       text: body(
         "First-party press announcement dated 2026-01-20. Names the originating organization.",
       ),
     },
     {
-      url: "https://github.com/example/topic",
+      url: "https://github.com/modelcontextprotocol/topic",
       title: "Canonical source repository",
       publisher: "GitHub",
       date: "2026-02-01",
@@ -48,12 +50,12 @@ export function defaultMockPages(query = "the research topic"): ExtractedPage[] 
       ),
     },
     {
-      url: "https://example.com/docs/topic/overview",
-      title: "Product documentation overview",
-      publisher: "Example",
+      url: "https://a2a-protocol.org/latest/specification/",
+      title: "A2A protocol specification",
+      publisher: "a2a-protocol.org",
       date: "2026-04-02",
       text: body(
-        "Product documentation overview updated 2026-04-02. Hosts, clients, and servers.",
+        "A2A protocol specification updated 2026-04-02. Hosts, clients, and servers.",
       ),
     },
     {

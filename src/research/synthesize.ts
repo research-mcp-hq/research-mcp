@@ -22,29 +22,68 @@ function excerpt(text: string, max = 220): string {
   return `${t.slice(0, max).trim()}…`;
 }
 
+/** First-party docs/spec hosts (whole host). */
+const PRIMARY_HOSTS_WHOLE: RegExp[] = [
+  /(?:^|\.)modelcontextprotocol\.io$/i,
+  /(?:^|\.)a2a-protocol\.org$/i,
+  /(?:^|\.)developers\.openai\.com$/i,
+];
+
+/** Hosts that are primary only on docs/spec/press path prefixes. */
+const PRIMARY_HOST_PATHS: Array<{ host: RegExp; path: RegExp }> = [
+  { host: /(?:^|\.)anthropic\.com$/i, path: /\/(news|docs)(\b|\/)/i },
+  { host: /(?:^|\.)linuxfoundation\.org$/i, path: /\/press(\b|\/)/i },
+];
+
+/** GitHub orgs whose repos count as primary (not arbitrary github.com). */
+const GITHUB_ORG_ALLOWLIST = new Set([
+  "modelcontextprotocol",
+  "a2aproject",
+]);
+
 /**
- * Conservative primary heuristic: official docs/spec/press/github paths.
- * Roundup blogs stay secondary.
+ * Allowlist primary heuristic: first-party docs/spec/press hosts + known GitHub orgs.
+ * Does NOT treat arbitrary github.com or loose /docs/ as primary.
  */
 export function classifySourceType(url: string): SourceType {
-  const host = hostname(url);
+  let host = "unknown";
+  let path = "";
+  try {
+    const u = new URL(url);
+    host = u.hostname;
+    path = u.pathname;
+  } catch {
+    return "secondary";
+  }
+
+  // GitHub: only known org allowlist (e.g. modelcontextprotocol/, a2aproject/)
+  if (/^(?:www\.)?github\.com$/i.test(host)) {
+    const m = path.match(/^\/([^/]+)\//);
+    if (m && GITHUB_ORG_ALLOWLIST.has(m[1]!.toLowerCase())) {
+      return "primary";
+    }
+    return "secondary";
+  }
+
+  if (PRIMARY_HOSTS_WHOLE.some((re) => re.test(host))) {
+    return "primary";
+  }
+
+  for (const rule of PRIMARY_HOST_PATHS) {
+    if (rule.host.test(host) && rule.path.test(path)) {
+      return "primary";
+    }
+  }
+
+  // Explicit official spec/press patterns on already-trusted-looking first-party hosts only
+  // (kept narrow — no loose /docs/ on arbitrary domains).
   if (
-    /github\.com$/i.test(host) ||
-    /^docs\./i.test(host) ||
-    /linuxfoundation\.org$/i.test(host) ||
-    /anthropic\.com$/i.test(host) ||
-    /openai\.com$/i.test(host) ||
-    /modelcontextprotocol\.io$/i.test(host)
+    /(?:^|\.)openai\.com$/i.test(host) &&
+    /\/(docs|research|index\/news)\b/i.test(path)
   ) {
     return "primary";
   }
-  if (
-    /\/specification\b/i.test(url) ||
-    /\/press\//i.test(url) ||
-    /\/docs\//i.test(url)
-  ) {
-    return "primary";
-  }
+
   return "secondary";
 }
 
@@ -100,7 +139,8 @@ export function synthesizeBrief(input: SynthesizeInput): SynthesizeOutput {
         `Claims below are restated from fetched pages only; v0 synthesizer is extractive.`;
 
   const gaps: string[] = [
-    "v0 synthesizer is extractive (no LLM). Quote-verify (P2) is not applied yet.",
+    // TODO(P2 quote gate): verified quotes required before live briefs can bill.
+    "v0 synthesizer is extractive collage (not decision-ready). Quote gate required for billing — extractive live output never bills customers (billable=false).",
   ];
   if (!density) {
     gaps.push(

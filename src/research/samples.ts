@@ -24,7 +24,6 @@ import {
   type SearchFn,
   type SourceLookupResult,
 } from "../types.js";
-import { liveResearchEnabled } from "./live.js";
 import {
   goldenBriefHappy,
   goldenBriefSparse,
@@ -232,10 +231,8 @@ export function isGoldenBriefQuery(query: string): boolean {
 export function briefPathMayBeBillable(query: string, depth: Depth): boolean {
   const g = matchBriefGolden(query);
   if (g) return depth === GOLDEN_BRIEF_AUTHORED_DEPTH;
-  // Live search→extract may bill quick/standard when LIVE_RESEARCH=1.
-  if (liveResearchEnabled() && (depth === "standard" || depth === "quick")) {
-    return true;
-  }
+  // Extractive v0 live path (LIVE_RESEARCH search→extract→synthesize) never bills —
+  // quote gate (P2) required. Soft-reserve 0: do not demand full standard/quick SKU.
   return false;
 }
 

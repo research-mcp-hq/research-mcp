@@ -45,7 +45,7 @@ Live path (manual):
 ```bash
 LIVE_RESEARCH=1 API_KEYS=dev-key-1 npm start
 # research_brief depth=quick|standard → search→extract→synthesize (LocalHttpProvider)
-# billable only if density+confidence bar pass AND projected COGS ≤ cap
+# extractive v0 never bills; density scaffolding still runs; COGS over-cap aborts
 # PARALLEL_API_KEY / EXA_API_KEY are unused placeholders
 ```
 

@@ -93,7 +93,7 @@ docker run --rm -p 3000:3000 -e API_KEYS=dev-key-1 research-mcp
 
 ## Live research (optional)
 
-When `LIVE_RESEARCH=1`, off-golden `research_brief` with `depth=quick` or `standard` runs search → fetch/extract (page cap) → local extractive synthesizer. Billable only if the density+confidence bar passes and projected COGS is under the SKU cap. Failure falls back to sample. Deep stays sample in this phase. Tests inject `MockProvider` (no network). Parallel/Exa are not called.
+When `LIVE_RESEARCH=1`, off-golden `research_brief` with `depth=quick` or `standard` runs search → fetch/extract (page cap) → local extractive synthesizer. **Extractive v0 never bills** (`meta.billable=false`; quote gate required). Soft-reserve skips full SKU precheck on this path. COGS over-cap still aborts fail-closed. Failure falls back to sample. Deep stays sample in this phase. Tests inject `MockProvider` (no network). Parallel/Exa are not called.
 
 ## Metering stub
 

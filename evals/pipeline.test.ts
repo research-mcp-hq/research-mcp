@@ -48,7 +48,7 @@ function overCapCogs(): CogsConfig {
   };
 }
 
-await test("mock pipeline produces bar-passing billable standard brief", async () => {
+await test("mock extractive live: density scaffolding passes but billable===false", async () => {
   const origFetch = globalThis.fetch;
   let fetchCalled = false;
   globalThis.fetch = (async () => {
@@ -62,10 +62,14 @@ await test("mock pipeline produces bar-passing billable standard brief", async (
       { provider, cogs: loadCogsConfig() },
     );
     assert.equal(r.meta?.mode, "live");
-    assert.equal(r.meta?.billable, true);
+    // MUST 1: extractive v0 never bills customers
+    assert.equal(r.meta?.billable, false);
     assert.equal(r.confidence, "medium");
     assert.ok(briefDensityOk(r.sources, "standard"));
     assert.ok(briefBarPassing(r.sources, "standard", r.confidence));
+    const body = r.body as { density_confidence_ok?: boolean; synthesizer?: string };
+    assert.equal(body.density_confidence_ok, true);
+    assert.equal(body.synthesizer, "local-extractive-v0");
     const uniq = new Set(r.sources.map((s) => s.url));
     assert.ok(uniq.size >= 4, `unique sources ${uniq.size}`);
     const primaries = r.sources.filter((s) => s.type === "primary");
@@ -74,13 +78,16 @@ await test("mock pipeline produces bar-passing billable standard brief", async (
     for (const s of r.sources) {
       assert.ok(allowed.has(s.url), `invented url ${s.url}`);
     }
+    assert.ok(
+      r.gaps.some((g) => /extractive|quote gate|not decision-ready/i.test(g)),
+    );
     assert.equal(provider.id, "mock");
     assert.ok(provider.searchCalls >= 1);
     assert.ok(provider.extractCalls >= 4);
     assert.equal(fetchCalled, false);
     const gate = applyChargeGate("research_brief", "standard", r.meta);
-    assert.equal(gate.billable, true);
-    assert.equal(gate.charge_usd, 0.6);
+    assert.equal(gate.billable, false);
+    assert.equal(gate.charge_usd, 0);
     assert.equal(gate.mode, "live");
   } finally {
     globalThis.fetch = origFetch;
@@ -195,25 +202,72 @@ await test("no provider + LIVE_RESEARCH off → sample (off-golden standard)", a
   }
 });
 
-await test("quick mock pipeline can bill when density bar passes", async () => {
+await test("quick mock extractive: density scaffolding ok but not billable", async () => {
   const provider = new MockProvider();
   const r = await runResearchBrief(
     { query: OFF_GOLDEN, depth: "quick" },
     { provider },
   );
   assert.equal(r.meta?.mode, "live");
-  assert.equal(r.meta?.billable, true);
+  assert.equal(r.meta?.billable, false);
   assert.ok(briefDensityOk(r.sources, "quick"));
+  assert.ok(briefBarPassing(r.sources, "quick", r.confidence));
   const gate = applyChargeGate("research_brief", "quick", r.meta);
-  assert.equal(gate.charge_usd, 0.25);
+  assert.equal(gate.billable, false);
+  assert.equal(gate.charge_usd, 0);
 });
 
-await test("classifySourceType: docs/press/github primary, blog secondary", () => {
-  assert.equal(classifySourceType("https://docs.example.com/topic/specification"), "primary");
-  assert.equal(classifySourceType("https://www.example.com/press/topic-2026"), "primary");
-  assert.equal(classifySourceType("https://github.com/example/topic"), "primary");
-  assert.equal(classifySourceType("https://example.com/docs/topic/overview"), "primary");
+await test("density helper can pass without flipping billable (scaffold only)", () => {
+  const pages = defaultMockPages(OFF_GOLDEN);
+  // Simulate sources via classifySourceType on allowlisted mock URLs
+  const sources = pages.map((p) => ({
+    title: p.title,
+    url: p.url,
+    publisher: p.publisher ?? "x",
+    accessed: "2026-09-12",
+    type: classifySourceType(p.url),
+    supports: "test",
+  }));
+  assert.ok(briefDensityOk(sources, "standard"));
+  assert.ok(briefBarPassing(sources, "standard", "medium"));
+  // Pipeline is the only place that sets meta.billable; helper does not bill.
+});
+
+await test("classifySourceType: allowlist primaries; arbitrary github/docs secondary", () => {
+  assert.equal(
+    classifySourceType("https://modelcontextprotocol.io/specification/2026-07-28"),
+    "primary",
+  );
+  assert.equal(
+    classifySourceType("https://www.anthropic.com/news/model-context-protocol"),
+    "primary",
+  );
+  assert.equal(
+    classifySourceType("https://a2a-protocol.org/latest/specification/"),
+    "primary",
+  );
+  assert.equal(
+    classifySourceType(
+      "https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation",
+    ),
+    "primary",
+  );
+  assert.equal(
+    classifySourceType("https://developers.openai.com/api/docs/guides/agents-api/overview"),
+    "primary",
+  );
+  assert.equal(
+    classifySourceType("https://github.com/modelcontextprotocol/modelcontextprotocol"),
+    "primary",
+  );
+  assert.equal(classifySourceType("https://github.com/a2aproject/A2A"), "primary");
+  // MUST 2: not primary
+  assert.equal(classifySourceType("https://github.com/example/topic"), "secondary");
+  assert.equal(classifySourceType("https://example.com/docs/topic/overview"), "secondary");
+  assert.equal(classifySourceType("https://docs.example.com/topic/specification"), "secondary");
+  assert.equal(classifySourceType("https://www.example.com/press/topic-2026"), "secondary");
   assert.equal(classifySourceType("https://roundup.blog.example/topic-q3"), "secondary");
+  assert.equal(classifySourceType("https://www.anthropic.com/company"), "secondary");
 });
 
 await test("LocalHttpProvider uses injected fetch only (no vendor)", async () => {
@@ -253,13 +307,15 @@ await test("runLiveBriefPipeline COGS abort does not search", async () => {
   assert.equal(provider.searchCalls, 0);
 });
 
-await test("LIVE_RESEARCH=1 makes off-golden standard precheck-eligible", () => {
+await test("LIVE_RESEARCH=1 extractive: soft-reserve 0 (not precheck-eligible)", () => {
   const prev = process.env.LIVE_RESEARCH;
   process.env.LIVE_RESEARCH = "1";
   try {
-    assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "standard"), true);
-    assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "quick"), true);
+    // Extractive never bills → do not demand full SKU soft-reserve/precheck
+    assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "standard"), false);
+    assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "quick"), false);
     assert.equal(briefPathMayBeBillable(OFF_GOLDEN, "deep"), false);
+    // Goldens still bill at authored depth
     assert.equal(briefPathMayBeBillable(GOLDEN_Q, "standard"), true);
     assert.equal(briefPathMayBeBillable(GOLDEN_Q, "deep"), false);
   } finally {

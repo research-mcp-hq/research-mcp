@@ -108,13 +108,40 @@ export async function runLiveBriefPipeline(
   if (pages.length === 0) return null;
 
   try {
-    const synth = provider.synthesize
-      ? await provider.synthesize({ query, depth, pages })
+    const usedProviderSynthesize = typeof provider.synthesize === "function";
+    const synth = usedProviderSynthesize
+      ? await provider.synthesize!({ query, depth, pages })
       : synthesizeBrief({ query, depth, pages });
 
-    const billable = briefBarPassing(synth.sources, depth, synth.confidence);
+    // Density+confidence scaffolding still computed (future quote-gate + billing).
+    const densityConfidenceOk = briefBarPassing(
+      synth.sources,
+      depth,
+      synth.confidence,
+    );
+
+    // TODO(P2 quote gate): require verified quotes before live standard can bill.
+    // Extractive v0 (local-extractive collage) is never decision-ready → never bills.
+    const bodySynth =
+      synth.body && typeof synth.body === "object"
+        ? (synth.body as Record<string, unknown>)
+        : null;
+    const synthesizerId =
+      typeof bodySynth?.synthesizer === "string" ? bodySynth.synthesizer : null;
+    const isExtractive =
+      (synthesizerId != null && /extractive/i.test(synthesizerId)) ||
+      !usedProviderSynthesize ||
+      synthesizerId === "local-extractive-v0";
+
+    // Extractive live path: always meta.billable=false (even if density scaffolding passes).
+    const billable = densityConfidenceOk && !isExtractive;
+
     const gaps = [...synth.gaps];
-    if (!billable) {
+    if (isExtractive) {
+      gaps.push(
+        "Extractive collage / not decision-ready — quote gate required for billing (billable=false).",
+      );
+    } else if (!billable) {
       gaps.push(
         "Live brief did not meet density+confidence bar — not charged (billable=false).",
       );
@@ -124,11 +151,12 @@ export async function runLiveBriefPipeline(
     }
 
     const body =
-      synth.body && typeof synth.body === "object"
+      bodySynth != null
         ? {
-            ...(synth.body as Record<string, unknown>),
+            ...bodySynth,
             mode: "live",
             billable,
+            density_confidence_ok: densityConfidenceOk,
             cogs: {
               projected_cents: plan.projectedCents,
               cap_cents: plan.capCents,
@@ -136,7 +164,7 @@ export async function runLiveBriefPipeline(
               provider: provider.id,
             },
           }
-        : { mode: "live", billable };
+        : { mode: "live", billable, density_confidence_ok: densityConfidenceOk };
 
     return {
       query,
