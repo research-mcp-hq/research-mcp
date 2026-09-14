@@ -24,6 +24,7 @@ import {
   type SearchFn,
   type SourceLookupResult,
 } from "../types.js";
+import { liveResearchEnabled } from "./live.js";
 import {
   goldenBriefHappy,
   goldenBriefSparse,
@@ -223,11 +224,19 @@ function matchLookupGolden(claim: string): SourceLookupResult | null {
   return null;
 }
 
+export function isGoldenBriefQuery(query: string): boolean {
+  return matchBriefGolden(query) !== null;
+}
+
 /** True when the path can still bill (full SKU precheck warranted). */
 export function briefPathMayBeBillable(query: string, depth: Depth): boolean {
   const g = matchBriefGolden(query);
-  if (!g) return false;
-  return depth === GOLDEN_BRIEF_AUTHORED_DEPTH;
+  if (g) return depth === GOLDEN_BRIEF_AUTHORED_DEPTH;
+  // Live search→extract may bill quick/standard when LIVE_RESEARCH=1.
+  if (liveResearchEnabled() && (depth === "standard" || depth === "quick")) {
+    return true;
+  }
+  return false;
 }
 
 export function comparePathMayBeBillable(
@@ -395,7 +404,7 @@ function genericBrief(input: {
       sections: {
         what: "Topic framed against MCP / agent-interop fixture-set anchors (sample-only).",
         status:
-          "No live search in sample mode; LIVE_RESEARCH=1 enables optional shallow/quick live path. Not charged as research.",
+          "No live search in sample mode; LIVE_RESEARCH=1 enables search→extract→synthesize for quick/standard (COGS-capped). Not charged as research.",
         implications: "Prefer primary docs over roundup blogs for high confidence.",
       },
       ...(deep
@@ -412,7 +421,7 @@ function genericBrief(input: {
     gaps: [
       "Sample/demo path — not charged as research (billable=false).",
       "Fixture-set MCP/A2A URLs are anchors only; they were not fetched for this caller query.",
-      "Enable LIVE_RESEARCH=1 for depth=quick live attempt, or supply a golden fixture.",
+      "Enable LIVE_RESEARCH=1 for live search→extract on quick/standard, or supply a golden fixture.",
       ...(input.as_of_hint
         ? [`Caller as_of_hint=${input.as_of_hint}; sample fixtures frozen at ${AS_OF}.`]
         : []),

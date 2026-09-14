@@ -58,9 +58,9 @@ function resultMeta(data: { meta?: ResearchMeta }): ResearchMeta | undefined {
 
 /**
  * Credit precheck: demand full SKU cents only when the path can be billable.
- * Known non-billable paths (sample, depth-mismatched golden, snippet-only live,
+ * Known non-billable paths (sample, depth-mismatched golden, COGS abort,
  * non-URL unaudited lookup) soft-reserve 0 — skip full SKU assert.
- * Charge gate still enforces $0 for sample/snippet/quality-fail after the call.
+ * Charge gate still enforces $0 for sample/quality-fail/COGS-abort after the call.
  */
 function precheckCredits(
   ctx: ToolCallContext,

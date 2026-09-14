@@ -33,6 +33,9 @@ jobs:
       - name: Billing tests
         run: npm run test:billing
 
+      - name: Pipeline tests
+        run: npm run test:pipeline
+
       - name: Smoke /health
         run: |
           API_KEYS=ci-smoke-key node dist/index.js &

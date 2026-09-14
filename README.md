@@ -33,7 +33,8 @@ Evals:
 ```bash
 npm run eval      # goldens G1–G7 + N1–N3 → 10/10 ship_bar
 npm run eval:off  # off-golden lookup/sample charge-gate cases (mocked fetch)
-npm run eval:all  # both
+npm run eval:all  # goldens + off-golden + pipeline
+npm run test:pipeline  # mock live brief + COGS caps
 ```
 
 ## Env vars
@@ -43,7 +44,9 @@ npm run eval:all  # both
 | `API_KEYS` | yes (for `/mcp`) | Comma-separated API keys |
 | `PORT` | no | Default `3000` |
 | `HOST` | no | Default `0.0.0.0` |
-| `LIVE_RESEARCH` | no | Set `1` to allow live web search for `research_brief` with `depth=quick` (falls back to sample on failure) |
+| `LIVE_RESEARCH` | no | Set `1` to run search→extract→synthesize for `research_brief` `quick`/`standard` (COGS-capped; sample fallback) |
+| `COGS_CAP_CENTS_*` | no | Hard COGS caps per SKU (defaults 10 / 25 / 50). Over-cap → `billable=false` |
+| `PARALLEL_API_KEY` / `EXA_API_KEY` | no | Placeholders — **unused** until keys are provided |
 
 ## Auth
 
@@ -90,7 +93,7 @@ docker run --rm -p 3000:3000 -e API_KEYS=dev-key-1 research-mcp
 
 ## Live research (optional)
 
-When `LIVE_RESEARCH=1`, `research_brief` with `depth=quick` may attempt a simple DuckDuckGo HTML search. Any failure falls back to the sample path. Standard/deep goldens remain sample/fixture-driven in v0.
+When `LIVE_RESEARCH=1`, off-golden `research_brief` with `depth=quick` or `standard` runs search → fetch/extract (page cap) → local extractive synthesizer. Billable only if the density+confidence bar passes and projected COGS is under the SKU cap. Failure falls back to sample. Deep stays sample in this phase. Tests inject `MockProvider` (no network). Parallel/Exa are not called.
 
 ## Metering stub
 
@@ -100,7 +103,7 @@ Each tool call logs a JSON line to stdout (`type: usage`) with `requestId`, `too
 
 - `src/index.ts` — Express + auth + `/health` + `/mcp`
 - `src/server.ts` — MCP tool registration
-- `src/research/` — samples, goldens, optional live
+- `src/research/` — samples, goldens, live pipeline + providers
 - `evals/score-goldens.ts` — 6/6 rubric
 - `docs/TOOLS.md` — schemas
 - `ARCHITECTURE.md` — transport / auth / metering
