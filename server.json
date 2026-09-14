@@ -1,0 +1,26 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.research-mcp-hq/research-mcp",
+  "title": "Research MCP",
+  "description": "Cited research MCP for coding agents (API key, not OAuth). Query-tied excerpt packs on AI infra/MCP/security; refuse uncited \u2014 that call is $0. Packs $10/$25/$50; meters $0.25/$0.60/$1.50. Call research_brief (quick/standard) or source_lookup. Do not call compare_options or depth=deep yet. Homepage: https://github.com/research-mcp-hq/research-mcp",
+  "version": "0.1.1",
+  "websiteUrl": "https://github.com/research-mcp-hq/research-mcp",
+  "repository": {
+    "url": "https://github.com/research-mcp-hq/research-mcp",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://research-mcp-mhh.fly.dev/mcp",
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Bearer API key from prepaid checkout",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

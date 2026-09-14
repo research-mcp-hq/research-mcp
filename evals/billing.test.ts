@@ -24,6 +24,8 @@ import { fulfillCheckoutSession, handleStripeWebhook } from "../src/billing/webh
 import { applyChargeGate } from "../src/usage.js";
 import { resolveAuth } from "../src/auth.js";
 import { sendInsufficientCredits } from "../src/billing/http402.js";
+import { handleBillingCredits, METER_USD, FAIL_USD } from "../src/billing/credits.js";
+import { PACK_CREDITS_CENTS } from "../src/billing/config.js";
 
 function mockRes() {
   const state: {
@@ -504,5 +506,76 @@ await test("sk_live_ refused without STRIPE_ALLOW_LIVE=1", () => {
     process.env.STRIPE_PRICE_CREDITS_50 = prev50;
   }
 });
+
+await test("T10 credits: customer key returns balance + locked tables", async () => {
+  await withDb(async (db) => {
+    const customerId = upsertCustomer(db, {
+      stripeCustomerId: `cus_credits_${randomUUID()}`,
+      email: "credits@example.com",
+    });
+    grantPackCredits(db, {
+      customerId,
+      creditsCents: 2500,
+      stripeEventId: `evt_credits_${randomUUID()}`,
+      checkoutSessionId: `cs_credits_${randomUUID()}`,
+    });
+    const { plaintext } = ensureCustomerApiKey(db, customerId);
+    assert.ok(plaintext, "expected newly created plaintext key");
+    const prevKeys = process.env.API_KEYS;
+    process.env.API_KEYS = "break-glass-only";
+    try {
+      const auth = resolveAuth(plaintext!);
+      assert.ok(auth);
+      assert.equal(auth!.breakGlass, false);
+      assert.equal(auth!.customerId, customerId);
+
+      const { res, state } = mockRes();
+      const req = { authContext: auth } as unknown as Request;
+      handleBillingCredits(req, res);
+      assert.equal(state.statusCode, 200);
+      const body = state.body as Record<string, unknown>;
+      assert.equal(body.balance_cents, 2500);
+      assert.equal(body.balance_usd, 25);
+      assert.equal(body.fail_usd, FAIL_USD);
+      assert.equal(body.fail_usd, 0);
+      assert.deepEqual(body.packs, {
+        starter: PACK_CREDITS_CENTS.starter,
+        standard: PACK_CREDITS_CENTS.standard,
+        pro: PACK_CREDITS_CENTS.pro,
+      });
+      assert.equal((body.packs as { starter: number }).starter, 1000);
+      assert.equal((body.packs as { standard: number }).standard, 2500);
+      assert.equal((body.packs as { pro: number }).pro, 5000);
+      assert.deepEqual(body.meters_usd, METER_USD);
+      assert.equal((body.meters_usd as { lite: number }).lite, 0.25);
+      assert.equal((body.meters_usd as { standard: number }).standard, 0.6);
+      assert.equal((body.meters_usd as { deep: number }).deep, 1.5);
+      assert.equal(body.break_glass, undefined);
+    } finally {
+      process.env.API_KEYS = prevKeys;
+    }
+  });
+});
+
+await test("T10 credits: break-glass returns ops shape without fake balance", async () => {
+  const prevKeys = process.env.API_KEYS;
+  process.env.API_KEYS = "ops-key-t10";
+  try {
+    const auth = resolveAuth("ops-key-t10");
+    assert.ok(auth?.breakGlass);
+    const { res, state } = mockRes();
+    handleBillingCredits({ authContext: auth } as unknown as Request, res);
+    assert.equal(state.statusCode, 200);
+    const body = state.body as Record<string, unknown>;
+    assert.equal(body.break_glass, true);
+    assert.equal(body.balance_cents, null);
+    assert.equal(body.balance_usd, null);
+    assert.equal(body.fail_usd, 0);
+    assert.equal((body.packs as { starter: number }).starter, 1000);
+  } finally {
+    process.env.API_KEYS = prevKeys;
+  }
+});
+
 process.stdout.write(`\nbilling tests: ${passed} passed, ${failed} failed\n`);
 if (failed > 0) process.exit(1);

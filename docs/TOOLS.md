@@ -1,150 +1,56 @@
-# Tools — JSON Schema / OpenAPI-ish
+# Tools — agent-facing summary
 
-Shared response envelope (all tools):
+**schema_version:** `2026-09-14` (also header `X-Research-MCP-Schema-Version`)  
+**Full JSON Schema:** [contract/schema.json](./contract/schema.json)
+
+## Default live tools
+
+### `research_brief`
+
+Call when you need cited, query-tied excerpt packs on AI infra, MCP, or security. Use `depth=quick` ($0.25) or `depth=standard` ($0.60). Returns envelope `tldr`/`body`/`confidence`/`sources`/`gaps`/`as_of` + `schema_version`. Do not call with `depth=deep` unless `ENABLE_PREVIEW_TOOLS=1` (preview, always $0). If quotes fail verification on `source_url`, refused and **not billed**.
+
+### `source_lookup`
+
+Call when you have one URL or claim to fetch/verify. Lite $0.25. Same cited envelope. Do not use as open-web search or multi-source synthesis.
+
+## Parked / preview
+
+### `compare_options`
+
+Do not call yet — no live path (golden-only). Use `research_brief` instead. Registered only when `ENABLE_PREVIEW_TOOLS=1`; always `billable=false` / $0; never soft-reserves full SKU.
+
+### `depth=deep`
+
+Parked. With preview flag: allowed but always $0. Without flag: not in inputSchema / `preview_required` error.
+
+## Shared envelope
 
 ```json
 {
   "tldr": "string",
   "body": {},
   "confidence": "high | medium | low | unknown",
-  "sources": [
-    {
-      "title": "string",
-      "url": "https://...",
-      "publisher": "string",
-      "accessed": "YYYY-MM-DD",
-      "type": "primary | secondary",
-      "supports": "string"
-    }
-  ],
+  "sources": [{ "title", "url", "publisher", "accessed", "type", "supports", "retrieved_at?" }],
   "gaps": ["string"],
   "as_of": "YYYY-MM-DD",
-  "meta": {
-    "mode": "golden | sample | live",
-    "billable": true
-  }
+  "schema_version": "2026-09-14",
+  "meta": { "mode": "golden|sample|live", "billable": true },
+  "fail_gate": { "reason": "string", "retryable": false },
+  "claims": [{ "claim", "quote", "source_url" }],
+  "retrieved_at": "ISO-8601"
 }
 ```
 
-`meta.mode` / `meta.billable` drive the usage charge gate (sample/demo and quality-bar fails → no charge).
+`meta.billable === true` is the only charge path. fail=$0 otherwise.
 
-Depth density bars:
+## Density bars
 
 | depth | Sources |
 | --- | --- |
 | `quick` | ≥2 unique, ≥1 primary |
 | `standard` | ≥4 unique, ≥2 primary |
-| `deep` | ≥6 unique, ≥3 primary + counter-arguments + gaps |
+| `deep` (preview) | ≥6 unique, ≥3 primary + counter-arguments + gaps |
 
----
+## Credits meter
 
-## `research_brief`
-
-### Input
-
-```json
-{
-  "type": "object",
-  "required": ["query", "depth"],
-  "properties": {
-    "query": { "type": "string" },
-    "depth": { "type": "string", "enum": ["quick", "standard", "deep"] },
-    "as_of_hint": { "type": "string", "description": "Optional YYYY-MM-DD" }
-  }
-}
-```
-
-### Output
-
-Shared envelope plus:
-
-```json
-{
-  "query": "string",
-  "depth": "quick | standard | deep"
-}
-```
-
-Off-golden sample briefs set `body.mode=sample`, `meta.billable=false`, and label MCP/A2A URLs as **fixture-set anchors** (not fetched for the caller query). Not charged as research.
-
-Optional live: `LIVE_RESEARCH=1` + `depth=quick` may return DuckDuckGo snippet leads (`meta.mode=live`, typically `billable=false` — snippet-only is not bar-passing).
-
-Annotations: `readOnlyHint=true`, `destructiveHint=false`, `openWorldHint=true`.
-
----
-
-## `compare_options`
-
-### Input
-
-```json
-{
-  "type": "object",
-  "required": ["options", "question", "criteria"],
-  "properties": {
-    "options": { "type": "array", "items": { "type": "string" }, "minItems": 2 },
-    "question": { "type": "string" },
-    "criteria": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
-  }
-}
-```
-
-### Output
-
-Shared envelope plus:
-
-```json
-{
-  "options": ["string"],
-  "question": "string",
-  "criteria": ["string"]
-}
-```
-
-`body` typically includes a criteria table and a **conditional** recommendation. Unknown criteria (e.g. take_rate) stay `"unknown"` with gaps.
-
-Off-golden sample compares: `body.mode=sample`, `meta.billable=false`, fixture-set anchors only — not charged as research.
-
-Density: ≥2 unique sources per option, ≥1 primary per option.
-
----
-
-## `source_lookup`
-
-### Input
-
-```json
-{
-  "type": "object",
-  "required": ["claim_or_url", "ask"],
-  "properties": {
-    "claim_or_url": { "type": "string" },
-    "ask": { "type": "string" }
-  }
-}
-```
-
-### Output
-
-Shared envelope plus:
-
-```json
-{
-  "claim_or_url": "string",
-  "ask": "string",
-  "verdict": "found | not_found | moved | conflicting | blocked | unaudited",
-  "http_status": 200
-}
-```
-
-Behavior:
-
-| Input | Behavior |
-| --- | --- |
-| Golden match | Frozen fixture; `meta.mode=golden`, billable |
-| Off-golden `https?://` URL | Real HTTP GET (~8s timeout, redirects followed). `http_status` only from the response — **never invented**. 2xx → `found`; 404 → `not_found`; 403 → `blocked` (not `not_found`); network/timeout → `http_status: null`, confidence `unknown` |
-| Off-golden non-URL claim | `verdict: unaudited`, confidence `unknown`, `http_status: null`, no fabricated sources; live fetch/search required |
-
-`http_status` may be `null` when no HTTP response was received (claim-only / fetch failed).
-
-Annotations: same read-only / open-world hints as other tools.
+`GET /billing/credits` (Bearer / X-API-Key) → `balance_cents`, packs 1000/2500/5000¢, meters 0.25/0.60/1.50, `fail_usd: 0`. See [visible-meter.md](./visible-meter.md).

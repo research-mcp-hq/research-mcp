@@ -1,4 +1,7 @@
-/** Shared research MCP types aligned to quality-bars.md */
+/** Shared research MCP types aligned to quality-bars.md + published contract */
+
+import type { FailGate } from "./contract.js";
+import { SCHEMA_VERSION } from "./contract.js";
 
 export type Confidence = "high" | "medium" | "low" | "unknown";
 export type SourceType = "primary" | "secondary";
@@ -21,9 +24,16 @@ export interface ResearchMeta {
    * Charge only when work matches the SKU:
    * - golden-matched at the fixture's authored depth (typically standard)
    * - live-fetched AND quality-bar-passing
-   * Depth-mismatched goldens, sample, snippet-only live → false
+   * Depth-mismatched goldens, sample, snippet-only live, preview paths → false
    */
   billable: boolean;
+}
+
+/** Load-bearing claim with quote (aligns with quote gate). */
+export interface ClaimExcerpt {
+  claim: string;
+  quote: string;
+  source_url: string;
 }
 
 export interface Source {
@@ -38,6 +48,8 @@ export interface Source {
    * Always set on live-pipeline sources: cached | live.
    */
   source?: "cached" | "live";
+  /** When the page body was retrieved (ISO-8601), if known. */
+  retrieved_at?: string;
 }
 
 export interface ResearchEnvelope {
@@ -48,6 +60,14 @@ export interface ResearchEnvelope {
   gaps: string[];
   as_of: string;
   meta?: ResearchMeta;
+  /** Published contract version (e.g. 2026-09-14). */
+  schema_version?: string;
+  /** Present when the charge/quality gate failed or path was non-billable. */
+  fail_gate?: FailGate;
+  /** Envelope-level retrieval timestamp (ISO-8601), if applicable. */
+  retrieved_at?: string;
+  /** Load-bearing claims / excerpts (live brief quote gate). */
+  claims?: ClaimExcerpt[];
 }
 
 export interface ResearchBriefResult extends ResearchEnvelope {
@@ -69,6 +89,9 @@ export interface SourceLookupResult extends ResearchEnvelope {
 }
 
 export const AS_OF = "2026-09-12";
+
+/** Re-export for callers that import AS_OF + schema together. */
+export { SCHEMA_VERSION };
 
 /** Injectable fetch for deterministic off-golden tests */
 export type FetchFn = (

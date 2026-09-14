@@ -8,13 +8,15 @@ import type { Request, Response, NextFunction } from "express";
 import { requireApiKey, requireBreakGlassApiKey } from "./auth.js";
 import { isBillingConfigured, isCreditPack, requireStripeBillingEnv } from "./billing/config.js";
 import { createCheckoutSession } from "./billing/checkout.js";
+import { handleBillingCredits } from "./billing/credits.js";
 import { initLedgerDb, getLedgerDb } from "./billing/db.js";
 import { renderCancelPage, renderSuccessPage } from "./billing/pages.js";
 import { handleStripeWebhook } from "./billing/webhook.js";
 import { createResearchMcpServer } from "./server.js";
 import { LedgerUsageLogger, StdoutUsageLogger } from "./usage.js";
-import { VERSION } from "./version.js";
+import { VERSION, SCHEMA_VERSION, SCHEMA_VERSION_HEADER } from "./version.js";
 import { SERVER_CARD } from "./server-card.js";
+import { isPreviewToolsEnabled } from "./preview.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? (process.env.FLY_APP_NAME ? "::" : "0.0.0.0");
@@ -83,9 +85,15 @@ async function main(): Promise<void> {
 
   app.use(express.json());
 
+  // Published contract version on all HTTP responses.
+  app.use((_req, res, next) => {
+    res.setHeader(SCHEMA_VERSION_HEADER, SCHEMA_VERSION);
+    next();
+  });
+
   // Health before host-header guard so Fly/proxy probes always work.
   app.get("/health", (_req, res) => {
-    res.json({ status: "ok", version: VERSION });
+    res.json({ status: "ok", version: VERSION, schema_version: SCHEMA_VERSION });
   });
 
   // Unauthenticated static card so directories (e.g. Smithery) can list tools
@@ -123,6 +131,9 @@ async function main(): Promise<void> {
   app.get("/billing/cancel", (_req, res) => {
     res.type("html").send(renderCancelPage());
   });
+
+  // T10 — visible meter (customer key or break-glass ops shape).
+  app.get("/billing/credits", requireApiKey, handleBillingCredits);
 
   app.post(
     "/billing/checkout",
@@ -184,6 +195,8 @@ async function main(): Promise<void> {
         billing: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
         ledger: Boolean(process.env.DATABASE_URL?.trim()),
         liveResearch: process.env.LIVE_RESEARCH === "1",
+        previewTools: isPreviewToolsEnabled(),
+        schemaVersion: SCHEMA_VERSION,
       }) + "\n",
     );
   });
