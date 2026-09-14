@@ -212,10 +212,8 @@ export function claimTiedToQuery(
 /**
  * True when quote (normalized) is a substring of the bound page's text.
  *
- * MUST: when sourceUrl is set, ONLY that URL's extracted text may match —
- * no fallback to any other page. Missing/unfetched source URL → false.
- * When sourceUrl is unset, any page may match (legacy / incomplete claims
- * still fail later if source_url is required by callers).
+ * MUST: sourceUrl is required. ONLY that URL's extracted text may match —
+ * no any-page fallback. Missing/empty/unfetched sourceUrl → false.
  */
 export function quoteInPages(
   quote: string,
@@ -224,19 +222,12 @@ export function quoteInPages(
 ): boolean {
   const nq = normalizeForQuoteMatch(quote);
   if (nq.length < MIN_QUOTE_CHARS) return false;
+  if (sourceUrl == null || sourceUrl === "") return false;
 
-  if (sourceUrl != null && sourceUrl !== "") {
-    const page = pages.find((p) => p.url === sourceUrl);
-    if (!page) return false;
-    const nt = normalizeForQuoteMatch(page.text ?? "");
-    return nt.includes(nq);
-  }
-
-  for (const page of pages) {
-    const nt = normalizeForQuoteMatch(page.text ?? "");
-    if (nt.includes(nq)) return true;
-  }
-  return false;
+  const page = pages.find((p) => p.url === sourceUrl);
+  if (!page) return false;
+  const nt = normalizeForQuoteMatch(page.text ?? "");
+  return nt.includes(nq);
 }
 
 export interface VerifyQuotesOpts {
@@ -246,7 +237,7 @@ export interface VerifyQuotesOpts {
 
 /**
  * Verify every load-bearing claim has quote ∈ its source_url page text
- * (strict bind) and is query-tied when query is provided.
+ * (strict bind) and is query-tied. Empty query → fail closed.
  * Empty claims → fail closed (collage / no quotes attached).
  */
 export function verifyQuotes(
@@ -266,6 +257,22 @@ export function verifyQuotes(
       confidenceFloor: "unknown",
       gaps: [
         "Quote gate failed: no load-bearing claims with quotes attached. Not charged (billable=false).",
+      ],
+    };
+  }
+
+  if (!query) {
+    return {
+      ok: false,
+      verified: [],
+      missing: list.map((c) => ({
+        claim: typeof c.claim === "string" ? c.claim : "",
+        quote: typeof c.quote === "string" ? c.quote : "",
+        source_url: typeof c.source_url === "string" ? c.source_url : "",
+      })),
+      confidenceFloor: "unknown",
+      gaps: [
+        "Quote gate failed: empty query — fail-closed (billable=false). MCP callers must send a query.",
       ],
     };
   }
@@ -310,7 +317,7 @@ export function verifyQuotes(
       continue;
     }
 
-    if (query && !claimTiedToQuery(query, claim, quote)) {
+    if (!claimTiedToQuery(query, claim, quote)) {
       missing.push(entry);
       gaps.push(
         `Quote gate: claim/quote not tied to query tokens for “${claim.slice(0, 80)}”. Fail-closed (billable=false).`,

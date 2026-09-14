@@ -325,42 +325,73 @@ await test("quick mock quoted: density+quotes → billable", async () => {
   assert.equal(gate.charge_usd, 0.25);
 });
 
-await test("quote helpers: normalize + substring match (no query opt)", () => {
+await test("quote helpers: normalize + substring match (source_url required)", () => {
   const pages = defaultMockPages(OFF_GOLDEN);
   const sentence =
     "Official specification published 2026-03-15. Defines roles, transports, and versioning.";
-  assert.ok(quoteInPages(sentence, pages));
+  const url = pages[0]!.url;
+  assert.equal(quoteInPages(sentence, pages), false); // unbound → false
+  assert.ok(quoteInPages(sentence, pages, url));
   assert.ok(
     quoteInPages(
       "  Official   SPECIFICATION published 2026-03-15. Defines roles, transports, and versioning. ",
       pages,
+      url,
     ),
   );
   assert.equal(
-    quoteInPages("This quote appears nowhere in any mock page text at all forever.", pages),
+    quoteInPages(
+      "This quote appears nowhere in any mock page text at all forever.",
+      pages,
+      url,
+    ),
     false,
   );
-  // Without query opt, verifyQuotes still requires source_url bind
-  const v = verifyQuotes(
-    [{ claim: "x", quote: sentence, source_url: pages[0]!.url }],
+  // Empty query → fail closed
+  const emptyQ = verifyQuotes(
+    [{ claim: "Purple widgets research SKU", quote: sentence, source_url: url }],
     pages,
   );
-  assert.equal(v.ok, true);
-  // Wrong URL even though text exists on pages[0]
-  const wrongUrl = verifyQuotes(
-    [{ claim: "x", quote: sentence, source_url: pages[1]!.url }],
+  assert.equal(emptyQ.ok, false);
+  assert.ok(emptyQ.gaps.some((g) => /empty query/i.test(g)));
+  // Sentence must also be query-tied; use a purple-widgets line from mock page text
+  const tiedSentence =
+    pages[0]!.text.split(/(?<=[.!?])\s+/).find((s) => /purple|widget|sku|research/i.test(s)) ??
+    sentence;
+  const v = verifyQuotes(
+    [
+      {
+        claim: "Purple widgets research SKU decision needs a cited brief",
+        quote: tiedSentence,
+        source_url: url,
+      },
+    ],
     pages,
+    { query: OFF_GOLDEN },
+  );
+  assert.equal(v.ok, true, v.gaps.join("; "));
+  const wrongUrl = verifyQuotes(
+    [
+      {
+        claim: "Purple widgets research SKU decision needs a cited brief",
+        quote: tiedSentence,
+        source_url: pages[1]!.url,
+      },
+    ],
+    pages,
+    { query: OFF_GOLDEN },
   );
   assert.equal(wrongUrl.ok, false);
   const miss = verifyQuotes(
     [
       {
-        claim: "bad",
+        claim: "Purple widgets research SKU bad claim",
         quote: "Completely fabricated sentence that is long enough to gate but absent.",
-        source_url: pages[0]!.url,
+        source_url: url,
       },
     ],
     pages,
+    { query: OFF_GOLDEN },
   );
   assert.equal(miss.ok, false);
   assert.equal(miss.confidenceFloor, "unknown");
