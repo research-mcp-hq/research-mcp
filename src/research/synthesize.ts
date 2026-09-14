@@ -1,7 +1,9 @@
 /**
  * Local deterministic synthesizer (quoted v1). No LLM, no MCP Sampling.
  * Emits { claim, quote, source_url }[] where each quote is a verbatim sentence
- * from extracted page text — required by the P2 quote gate for live billing.
+ * from extracted page text that shares meaningful query tokens — required by
+ * the quote gate for live billing. Random homepage first-sentences without
+ * query overlap are skipped (fail-closed / not billable).
  */
 
 import { AS_OF, type Confidence, type Depth, type Source, type SourceType } from "../types.js";
@@ -9,6 +11,7 @@ import { extractPageDate } from "./samples.js";
 import type { ExtractedPage, SynthesizeInput, SynthesizeOutput } from "./providers/types.js";
 import { briefDensityOk } from "./bar.js";
 import {
+  claimTiedToQuery,
   extractSentences,
   type ClaimQuote,
   MIN_QUOTE_CHARS,
@@ -116,17 +119,39 @@ export function pagesToSources(pages: ExtractedPage[]): Source[] {
 }
 
 /**
- * Build load-bearing claims from extracted pages: one claim per usable page,
- * quote = first substantial verbatim sentence from that page.
+ * Pick the first substantial sentence on a page that is query-tied
+ * (claim+quote share meaningful query tokens after stopword filter).
+ * Prefer: require real overlap — do not fall back to arbitrary first sentence.
  */
-export function buildClaimsFromPages(pages: ExtractedPage[]): ClaimQuote[] {
+export function pickQueryTiedQuote(
+  pageText: string,
+  query: string,
+): string | null {
+  const sentences = extractSentences(pageText, MIN_QUOTE_CHARS);
+  for (const sentence of sentences) {
+    // Probe with a claim shaped like the synthesizer's claim line.
+    if (claimTiedToQuery(query, sentence, sentence)) {
+      return sentence;
+    }
+  }
+  return null;
+}
+
+/**
+ * Build load-bearing claims from extracted pages: one claim per usable page,
+ * quote = first substantial verbatim sentence that shares query tokens.
+ * Pages whose text has no query-tied sentence are skipped (fail-closed).
+ */
+export function buildClaimsFromPages(
+  pages: ExtractedPage[],
+  query: string,
+): ClaimQuote[] {
   const claims: ClaimQuote[] = [];
   const seenQuotes = new Set<string>();
 
   for (const page of pages) {
     if (!page.url || !page.text?.trim()) continue;
-    const sentences = extractSentences(page.text, MIN_QUOTE_CHARS);
-    const quote = sentences[0];
+    const quote = pickQueryTiedQuote(page.text, query);
     if (!quote) continue;
     const key = quote.toLowerCase();
     if (seenQuotes.has(key)) continue;
@@ -134,6 +159,8 @@ export function buildClaimsFromPages(pages: ExtractedPage[]): ClaimQuote[] {
 
     const title = page.title || hostname(page.url);
     const claim = `From ${title}: ${excerpt(quote, 160)}`;
+    // Double-check claim+quote together still pass (title may add noise but not tokens).
+    if (!claimTiedToQuery(query, claim, quote)) continue;
     claims.push({ claim, quote, source_url: page.url });
   }
   return claims;
@@ -145,7 +172,7 @@ export function synthesizeBrief(input: SynthesizeInput): SynthesizeOutput {
   const sources = pagesToSources(usable);
   const density = briefDensityOk(sources, depth);
   const primaries = sources.filter((s) => s.type === "primary").length;
-  const claims = buildClaimsFromPages(usable);
+  const claims = buildClaimsFromPages(usable, query);
 
   let confidence: Confidence;
   if (usable.length === 0 || claims.length === 0) {
@@ -168,7 +195,7 @@ export function synthesizeBrief(input: SynthesizeInput): SynthesizeOutput {
     usable.length === 0
       ? `Live ${depth} brief for “${query.slice(0, 120)}” extracted no usable page text.`
       : claims.length === 0
-        ? `Live ${depth} brief for “${query.slice(0, 120)}” from ${usable.length} page(s) but no quotable sentences (≥${MIN_QUOTE_CHARS} chars).`
+        ? `Live ${depth} brief for “${query.slice(0, 120)}” from ${usable.length} page(s) but no query-tied quotable sentences (≥${MIN_QUOTE_CHARS} chars + query token overlap).`
         : `Live ${depth} brief for “${query.slice(0, 120)}” from ${usable.length} extracted page(s)` +
           `${titles.length ? ` (${titles.join("; ")})` : ""}. ` +
           `${claims.length} load-bearing claim(s) cited with verbatim quotes from fetched pages.`;
@@ -176,7 +203,7 @@ export function synthesizeBrief(input: SynthesizeInput): SynthesizeOutput {
   const gaps: string[] = [];
   if (claims.length === 0) {
     gaps.push(
-      "No load-bearing claims with quotes could be attached from extracted text — quote gate will fail (billable=false).",
+      "No query-tied load-bearing claims with quotes could be attached from extracted text — quote gate will fail (billable=false). local-quoted-v1 requires claim/quote ↔ query token overlap.",
     );
   }
   if (!density) {
@@ -187,6 +214,10 @@ export function synthesizeBrief(input: SynthesizeInput): SynthesizeOutput {
   if (dates.length < usable.length) {
     gaps.push("One or more extracted pages had no detectable date.");
   }
+  // Honesty gap: local-quoted-v1 is extractive + query-token-gated, not a full synthesizer.
+  gaps.push(
+    "local-quoted-v1: bills only when density + source_url-bound quotes + query-token overlap all pass; not a query-tied narrative synthesizer.",
+  );
 
   const body = {
     mode: "live" as const,

@@ -93,7 +93,7 @@ docker run --rm -p 3000:3000 -e API_KEYS=dev-key-1 research-mcp
 
 ## Live research (optional)
 
-When `LIVE_RESEARCH=1`, off-golden `research_brief` with `depth=quick` or `standard` runs search → fetch/extract (page cap) → synthesize → **quote gate**. Live bills only when density+primary allowlist OK **and** every load-bearing claim has a verified quote in fetched page text (`meta.billable=true`). Soft-reserve demands full SKU on this path. Quote-fail / COGS over-cap → `$0`. Failure falls back to sample. Deep stays sample in this phase. Tests inject `MockProvider` (no network). Parallel/Exa are not called.
+When `LIVE_RESEARCH=1`, off-golden `research_brief` with `depth=quick` or `standard` runs search → fetch/extract (page cap) → synthesize → **quote gate**. Live bills only when density+primary allowlist OK **and** every load-bearing claim has a verified quote on its `source_url` page **and** claim/quote share query tokens (`meta.billable=true`). Soft-reserve demands full SKU on this path. Quote-fail / COGS over-cap → `$0`. Failure falls back to sample. Deep stays sample in this phase. Tests inject `MockProvider` (no network). Parallel/Exa are not called.
 
 ## Metering stub
 

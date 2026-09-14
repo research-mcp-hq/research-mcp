@@ -1,7 +1,7 @@
 /**
  * Live research_brief pipeline: search → extract N pages (capped) → synthesize → quote gate.
  * Injectable provider (tests use MockProvider). Fail-closed on COGS over-cap or quote miss.
- * P1+P2 of optimization-brief.md — standard (and quick). Deep is not wired.
+ * Quote gate: source_url-bound match + query-token overlap. P1+P2 — standard (and quick). Deep not wired.
  */
 
 import {
@@ -151,10 +151,13 @@ export async function runLiveBriefPipeline(
       synth.confidence,
     );
 
-    // P2 quote gate: every load-bearing claim must have quote ∈ page text.
+    // Quote gate: quote ∈ source_url page only + query-token overlap.
     // Do NOT unlock billing via synthesizer label / !isExtractive alone.
     const claimList = claimsFromSynth(synth);
-    const quoteResult: QuoteVerifyResult = verifyQuotes(claimList, pages);
+    // MUST: bind quotes to source_url; require claim/quote ↔ query token overlap.
+    const quoteResult: QuoteVerifyResult = verifyQuotes(claimList, pages, {
+      query,
+    });
     const quotesVerified = quoteResult.ok;
 
     const billable = densityConfidenceOk && quotesVerified;
@@ -227,4 +230,10 @@ export async function runLiveBriefPipeline(
 }
 
 export { briefBarPassing, briefDensityOk, briefConfidenceOk } from "./bar.js";
-export { verifyQuotes, quoteInPages, normalizeForQuoteMatch } from "./quote-gate.js";
+export {
+  verifyQuotes,
+  quoteInPages,
+  normalizeForQuoteMatch,
+  claimTiedToQuery,
+  meaningfulTokens,
+} from "./quote-gate.js";

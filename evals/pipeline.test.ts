@@ -14,8 +14,14 @@ import { briefBarPassing, briefDensityOk } from "../src/research/bar.js";
 import { DEFAULT_COGS, loadCogsConfig, type CogsConfig } from "../src/research/cogs.js";
 import { defaultMockPages, MockProvider } from "../src/research/providers/mock.js";
 import { LocalHttpProvider } from "../src/research/providers/local.js";
-import { classifySourceType, synthesizeBrief } from "../src/research/synthesize.js";
 import {
+  buildClaimsFromPages,
+  classifySourceType,
+  synthesizeBrief,
+} from "../src/research/synthesize.js";
+import {
+  claimTiedToQuery,
+  meaningfulTokens,
   normalizeForQuoteMatch,
   quoteInPages,
   verifyQuotes,
@@ -303,7 +309,7 @@ await test("no provider + LIVE_RESEARCH off → sample (off-golden standard)", a
 });
 
 await test("quick mock quoted: density+quotes → billable", async () => {
-  const provider = new MockProvider();
+  const provider = new MockProvider({ pages: defaultMockPages(OFF_GOLDEN) });
   const r = await runResearchBrief(
     { query: OFF_GOLDEN, depth: "quick" },
     { provider },
@@ -319,7 +325,7 @@ await test("quick mock quoted: density+quotes → billable", async () => {
   assert.equal(gate.charge_usd, 0.25);
 });
 
-await test("quote helpers: normalize + substring match", () => {
+await test("quote helpers: normalize + substring match (no query opt)", () => {
   const pages = defaultMockPages(OFF_GOLDEN);
   const sentence =
     "Official specification published 2026-03-15. Defines roles, transports, and versioning.";
@@ -334,12 +340,18 @@ await test("quote helpers: normalize + substring match", () => {
     quoteInPages("This quote appears nowhere in any mock page text at all forever.", pages),
     false,
   );
-  assert.equal(normalizeForQuoteMatch("  A  B\nC  "), "a b c");
+  // Without query opt, verifyQuotes still requires source_url bind
   const v = verifyQuotes(
     [{ claim: "x", quote: sentence, source_url: pages[0]!.url }],
     pages,
   );
   assert.equal(v.ok, true);
+  // Wrong URL even though text exists on pages[0]
+  const wrongUrl = verifyQuotes(
+    [{ claim: "x", quote: sentence, source_url: pages[1]!.url }],
+    pages,
+  );
+  assert.equal(wrongUrl.ok, false);
   const miss = verifyQuotes(
     [
       {
@@ -455,6 +467,181 @@ await test("LIVE_RESEARCH off: soft-reserve 0 for off-golden", () => {
     if (prev === undefined) delete process.env.LIVE_RESEARCH;
     else process.env.LIVE_RESEARCH = prev;
   }
+});
+
+await test("MUST1: quote on wrong source_url fails even if text exists elsewhere", () => {
+  const pages = defaultMockPages(OFF_GOLDEN);
+  // Sentence lives on pages[0]; claim attributes it to pages[1]
+  const quote =
+    "Official specification published 2026-03-15. Defines roles, transports, and versioning.";
+  // Prefer a quote that is unique to page 0 — use exact page-0 lead sentence fragment present only there after bind
+  const page0Only =
+    "Official specification published 2026-03-15. Defines roles, transports, and versioning.";
+  assert.ok(quoteInPages(page0Only, pages, pages[0]!.url));
+  assert.equal(
+    quoteInPages(page0Only, pages, pages[1]!.url),
+    false,
+    "must not fall back to another page when source_url is set",
+  );
+  const v = verifyQuotes(
+    [{ claim: "spec roles", quote: page0Only, source_url: pages[1]!.url }],
+    pages,
+    { query: OFF_GOLDEN },
+  );
+  // Also fails query-tie (page0Only lacks purple/widgets…); assert source bind message path separately:
+  const vBind = verifyQuotes(
+    [
+      {
+        claim: `Purple widgets research: ${page0Only}`,
+        quote: page0Only,
+        source_url: pages[1]!.url,
+      },
+    ],
+    pages,
+    { query: OFF_GOLDEN },
+  );
+  assert.equal(vBind.ok, false);
+  assert.ok(
+    vBind.gaps.some((g) => /source_url|No cross-page fallback|not found in source_url/i.test(g)),
+  );
+  void quote;
+  void v;
+});
+
+await test("MUST1: missing source page → fail", () => {
+  const pages = defaultMockPages(OFF_GOLDEN);
+  const quote =
+    "Official specification query context for Purple widgets Q3 2026 decision brief for a paid research SKU.";
+  const miss = verifyQuotes(
+    [
+      {
+        claim: "Purple widgets paid research brief from a missing page",
+        quote,
+        source_url: "https://never-fetched.example/missing",
+      },
+    ],
+    pages,
+    { query: OFF_GOLDEN },
+  );
+  assert.equal(miss.ok, false);
+  assert.ok(miss.gaps.some((g) => /not in extracted pages|source_url/i.test(g)));
+});
+
+await test("MUST2: query-irrelevant homepage sentences → not billable", async () => {
+  const homepage: ExtractedPage[] = [
+    {
+      url: "https://modelcontextprotocol.io/",
+      title: "Homepage",
+      publisher: "MCP",
+      date: "2026-01-01",
+      text:
+        "Welcome to our site. Learn more about our products and company mission today. " +
+        "Contact sales for enterprise pricing and onboarding schedules. ".repeat(6),
+    },
+    {
+      url: "https://www.anthropic.com/news/welcome",
+      title: "Welcome press",
+      publisher: "Anthropic",
+      date: "2026-01-02",
+      text:
+        "Welcome to the newsroom. Browse announcements and company updates here. " +
+        "Subscribe for product notes and event calendars each quarter. ".repeat(6),
+    },
+    {
+      url: "https://github.com/modelcontextprotocol/welcome",
+      title: "Org welcome",
+      publisher: "GitHub",
+      date: "2026-01-03",
+      text:
+        "Organization profile page. Explore repositories and community guidelines. " +
+        "Read contributing docs before opening issues or pull requests. ".repeat(6),
+    },
+    {
+      url: "https://a2a-protocol.org/",
+      title: "A2A home",
+      publisher: "a2a",
+      date: "2026-01-04",
+      text:
+        "Home page hero copy about open protocols for agents in general. " +
+        "Join the mailing list for release notes and workshop invitations. ".repeat(6),
+    },
+  ];
+  const claims = buildClaimsFromPages(homepage, OFF_GOLDEN);
+  assert.equal(claims.length, 0, "no query-tied claims from generic homepage sentences");
+  const provider = new MockProvider({ pages: homepage });
+  const r = await runResearchBrief(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider },
+  );
+  assert.equal(r.meta?.mode, "live");
+  assert.equal(r.meta?.billable, false);
+  assert.ok(
+    r.gaps.some((g) => /query-tied|quote gate|query token/i.test(g)),
+  );
+  const gate = applyChargeGate("research_brief", "standard", r.meta);
+  assert.equal(gate.billable, false);
+  assert.equal(gate.charge_usd, 0);
+});
+
+await test("MUST2: query-tied mock with matching quote on correct URL + density → billable", async () => {
+  const pages = defaultMockPages(OFF_GOLDEN);
+  const claims = buildClaimsFromPages(pages, OFF_GOLDEN);
+  assert.ok(claims.length >= 2, `expected query-tied claims, got ${claims.length}`);
+  for (const c of claims) {
+    assert.ok(claimTiedToQuery(OFF_GOLDEN, c.claim, c.quote));
+    assert.ok(quoteInPages(c.quote, pages, c.source_url));
+    assert.ok(meaningfulTokens(OFF_GOLDEN).length >= 3);
+  }
+  const provider = new MockProvider({ pages });
+  const r = await runResearchBrief(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider },
+  );
+  assert.equal(r.meta?.mode, "live");
+  assert.equal(r.meta?.billable, true);
+  const body = r.body as { quotes_verified?: boolean; synthesizer?: string };
+  assert.equal(body.quotes_verified, true);
+  assert.equal(body.synthesizer, "local-quoted-v1");
+  const gate = applyChargeGate("research_brief", "standard", r.meta);
+  assert.equal(gate.billable, true);
+  assert.equal(gate.charge_usd, 0.6);
+});
+
+await test("quote helpers: source_url bind + normalize", () => {
+  const pages = defaultMockPages(OFF_GOLDEN);
+  const tied =
+    "Official specification query context for Purple widgets Q3 2026 decision brief for a paid research SKU.";
+  assert.ok(quoteInPages(tied, pages, pages[0]!.url));
+  assert.equal(
+    quoteInPages(tied, pages, "https://missing.example/x"),
+    false,
+  );
+  assert.equal(normalizeForQuoteMatch("  A  B\nC  "), "a b c");
+  const v = verifyQuotes(
+    [
+      {
+        claim: "Purple widgets paid research decision brief",
+        quote: tied,
+        source_url: pages[0]!.url,
+      },
+    ],
+    pages,
+    { query: OFF_GOLDEN },
+  );
+  assert.equal(v.ok, true);
+  const miss = verifyQuotes(
+    [
+      {
+        claim: "bad",
+        quote: "Completely fabricated sentence that is long enough to gate but absent.",
+        source_url: pages[0]!.url,
+      },
+    ],
+    pages,
+    { query: OFF_GOLDEN },
+  );
+  assert.equal(miss.ok, false);
+  assert.equal(miss.confidenceFloor, "unknown");
 });
 
 process.stdout.write(`\npipeline tests: ${passed} passed, ${failed} failed\n`);

@@ -45,12 +45,12 @@ Live path (manual):
 ```bash
 LIVE_RESEARCH=1 API_KEYS=dev-key-1 npm start
 # research_brief depth=quick|standard → search→extract→synthesize→quote gate (LocalHttpProvider)
-# billable only when density OK AND every load-bearing claim has quote ∈ page text
+# billable only when density OK AND quotes verify on source_url + query-token overlap
 # missing quotes → billable=false / $0; COGS over-cap aborts before provider calls
 # PARALLEL_API_KEY / EXA_API_KEY are unused placeholders
 ```
 
-**Quote gate:** after synthesize, each claim's `quote` must appear (whitespace/case-normalized) in some extracted page. Weakest miss sets confidence `unknown` and forces `$0`. Soft-reserve demands full SKU when `LIVE_RESEARCH=1` for quick/standard (path may bill).
+**Quote gate:** after synthesize, each claim's `quote` must appear (whitespace/case-normalized) in **that claim's `source_url` page only** (no cross-page fallback), and claim/quote must share meaningful query tokens. Weakest miss sets confidence `unknown` and forces `$0`. Soft-reserve demands full SKU when `LIVE_RESEARCH=1` for quick/standard (path may bill).
 
 COGS (defaults under SKU list prices): `COGS_CAP_CENTS_QUICK=10`, `STANDARD=25`, `DEEP=50` plus `COGS_SEARCH_UNIT_CENTS` / `COGS_EXTRACT_UNIT_CENTS`. Over-cap aborts fail-closed (`billable=false`).
 

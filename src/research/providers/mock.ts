@@ -16,8 +16,11 @@ const FILLER =
 
 export function defaultMockPages(query = "the research topic"): ExtractedPage[] {
   const q = query.slice(0, 120);
-  const body = (lead: string) =>
-    `${lead} Query context: ${q}. Published for the 2026 research set. ` + FILLER.repeat(6);
+  // Each page gets a *unique* query-tied sentence so buildClaimsFromPages can
+  // emit multiple claims (dedupe is by quote text). Lead sentences alone are
+  // intentionally not query-tied — synthesizer must skip them.
+  const body = (lead: string, tiedLead: string) =>
+    `${lead} ${tiedLead} Published for the 2026 research set. ` + FILLER.repeat(6);
 
   // URLs use primary allowlist hosts so density + quote gate can pass under the
   // tightened classifySourceType heuristic (quotes taken from page sentences).
@@ -29,6 +32,7 @@ export function defaultMockPages(query = "the research topic"): ExtractedPage[] 
       date: "2026-03-15",
       text: body(
         "Official specification published 2026-03-15. Defines roles, transports, and versioning.",
+        `Official specification query context for ${q}.`,
       ),
     },
     {
@@ -38,6 +42,7 @@ export function defaultMockPages(query = "the research topic"): ExtractedPage[] 
       date: "2026-01-20",
       text: body(
         "First-party press announcement dated 2026-01-20. Names the originating organization.",
+        `First-party press query context for ${q}.`,
       ),
     },
     {
@@ -47,6 +52,7 @@ export function defaultMockPages(query = "the research topic"): ExtractedPage[] 
       date: "2026-02-01",
       text: body(
         "Canonical source repository README dated 2026-02-01. Primary implementation home.",
+        `Canonical repository query context for ${q}.`,
       ),
     },
     {
@@ -56,6 +62,7 @@ export function defaultMockPages(query = "the research topic"): ExtractedPage[] 
       date: "2026-04-02",
       text: body(
         "A2A protocol specification updated 2026-04-02. Hosts, clients, and servers.",
+        `A2A specification query context for ${q}.`,
       ),
     },
     {
@@ -65,6 +72,7 @@ export function defaultMockPages(query = "the research topic"): ExtractedPage[] 
       date: "2026-05-10",
       text: body(
         "Secondary roundup dated 2026-05-10. Points back at the specification and press note.",
+        `Secondary roundup query context for ${q}.`,
       ),
     },
   ];
