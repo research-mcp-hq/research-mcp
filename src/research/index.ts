@@ -8,6 +8,7 @@ import type {
 } from "../types.js";
 import type { CogsConfig } from "./cogs.js";
 import { runLiveBriefPipeline } from "./pipeline.js";
+import type { PageBodyCache } from "./page-cache.js";
 import type { ProgressReporter } from "./progress.js";
 import { defaultResearchProvider } from "./providers/index.js";
 import type { ResearchProvider } from "./providers/types.js";
@@ -21,6 +22,10 @@ export interface ResearchBriefOpts {
   signal?: AbortSignal;
   /** Phase-only progress reporter (P3a). */
   onProgress?: ProgressReporter;
+  /** Page-body cache (P4). null disables; undefined uses process default. */
+  pageCache?: PageBodyCache | null;
+  /** Force live extracts (bypass cache). */
+  forceLive?: boolean;
 }
 
 export async function runResearchBrief(
@@ -46,6 +51,8 @@ export async function runResearchBrief(
           cogs: opts?.cogs,
           signal: opts?.signal,
           onProgress: opts?.onProgress,
+          pageCache: opts?.pageCache,
+          forceLive: opts?.forceLive,
         });
         if (live) return live;
       } catch {

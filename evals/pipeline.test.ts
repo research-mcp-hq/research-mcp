@@ -14,6 +14,18 @@ import {
   PIPELINE_PHASES,
   type PipelinePhase,
 } from "../src/research/progress.js";
+import {
+  PageBodyCache,
+  contentHash,
+  loadPageCacheConfig,
+  shouldBypassCache,
+  resetDefaultPageCache,
+} from "../src/research/page-cache.js";
+import {
+  mcpTasksPathEnabled,
+  MCP_TASKS_HOST_SUPPORT,
+  researchBriefTaskStub,
+} from "../src/research/tasks.js";
 import { briefBarPassing, briefDensityOk } from "../src/research/bar.js";
 import { DEFAULT_COGS, loadCogsConfig, type CogsConfig } from "../src/research/cogs.js";
 import { defaultMockPages, MockProvider } from "../src/research/providers/mock.js";
@@ -747,7 +759,7 @@ await test("P3a: abort mid-extract → non-billable cancel, no further extracts"
 
   const r = await runLiveBriefPipeline(
     { query: OFF_GOLDEN, depth: "standard" },
-    { provider, signal: ctrl.signal },
+    { provider, signal: ctrl.signal, pageCache: null },
   );
   assert.ok(r);
   assert.equal(r!.meta?.mode, "live");
@@ -769,7 +781,7 @@ await test("P3a: abort before search → cancelled, zero provider spend", async 
   const provider = new MockProvider({ pages: defaultMockPages(OFF_GOLDEN) });
   const r = await runLiveBriefPipeline(
     { query: OFF_GOLDEN, depth: "standard" },
-    { provider, signal: ctrl.signal },
+    { provider, signal: ctrl.signal, pageCache: null },
   );
   assert.ok(r);
   assert.equal(r!.meta?.billable, false);
@@ -797,7 +809,7 @@ await test("P3a: abort mid-search → cancelled non-billable", async () => {
   });
   const r = await runLiveBriefPipeline(
     { query: OFF_GOLDEN, depth: "standard" },
-    { provider, signal: ctrl.signal },
+    { provider, signal: ctrl.signal, pageCache: null },
   );
   assert.ok(r);
   assert.equal(r!.meta?.billable, false);
@@ -805,6 +817,125 @@ await test("P3a: abort mid-search → cancelled non-billable", async () => {
   assert.equal(body.cancelled, true);
   assert.equal(body.cancel_phase, "searching");
   assert.equal(provider.extractCalls, 0);
+});
+
+
+await test("P4: second identical extract hits cache; source cached|live labeled", async () => {
+  resetDefaultPageCache();
+  const cache = new PageBodyCache({
+    ttlMs: 60_000,
+    bypass: false,
+    asOf: "2026-09-12",
+  });
+  const provider = new MockProvider({ pages: defaultMockPages(OFF_GOLDEN) });
+
+  const first = await runLiveBriefPipeline(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider, pageCache: cache },
+  );
+  assert.ok(first);
+  assert.equal(first!.meta?.billable, true);
+  const firstLive = (first!.body as { page_cache?: { live?: number } }).page_cache
+    ?.live;
+  assert.ok((firstLive ?? 0) >= 4, `first live fetches ${firstLive}`);
+  assert.equal(cache.hits, 0);
+  assert.ok(cache.writes >= 4);
+  const extractsAfterFirst = provider.extractCalls;
+
+  for (const s of first!.sources) {
+    assert.equal(s.source, "live");
+  }
+
+  // Second run: same URLs → cache hits; provider.fetchExtract not called again.
+  const provider2 = new MockProvider({ pages: defaultMockPages(OFF_GOLDEN) });
+  const second = await runLiveBriefPipeline(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider: provider2, pageCache: cache },
+  );
+  assert.ok(second);
+  assert.equal(second!.meta?.billable, true);
+  const body2 = second!.body as {
+    page_cache?: { hits?: number; live?: number; bypassed?: boolean };
+  };
+  assert.equal(body2.page_cache?.bypassed, false);
+  assert.ok((body2.page_cache?.hits ?? 0) >= 4, `cache hits ${body2.page_cache?.hits}`);
+  assert.equal(body2.page_cache?.live, 0);
+  assert.equal(provider2.extractCalls, 0, "second run must not live-extract");
+  assert.ok(
+    second!.sources.every((s) => s.source === "cached"),
+    "all sources labeled cached",
+  );
+  // Charge gate still intact on cache path.
+  const gate = applyChargeGate("research_brief", "standard", second!.meta);
+  assert.equal(gate.billable, true);
+  assert.equal(gate.charge_usd, 0.6);
+  assert.ok(extractsAfterFirst >= 4);
+});
+
+await test("P4: as_of_hint / forceLive bypasses cache", async () => {
+  const cache = new PageBodyCache({
+    ttlMs: 60_000,
+    bypass: false,
+    asOf: "2026-09-12",
+  });
+  // Prime cache
+  const primer = new MockProvider({ pages: defaultMockPages(OFF_GOLDEN) });
+  await runLiveBriefPipeline(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider: primer, pageCache: cache },
+  );
+  assert.ok(cache.size() >= 4);
+
+  assert.equal(shouldBypassCache({ asOfHint: "2026-09-14" }), true);
+  assert.equal(shouldBypassCache({ forceLive: true }), true);
+  assert.equal(shouldBypassCache({}), false);
+
+  const provider = new MockProvider({ pages: defaultMockPages(OFF_GOLDEN) });
+  const live = await runLiveBriefPipeline(
+    { query: OFF_GOLDEN, depth: "standard", as_of_hint: "2026-09-14" },
+    { provider, pageCache: cache },
+  );
+  assert.ok(live);
+  const body = live!.body as {
+    page_cache?: { bypassed?: boolean; hits?: number; live?: number };
+  };
+  assert.equal(body.page_cache?.bypassed, true);
+  assert.equal(body.page_cache?.hits, 0);
+  assert.ok((body.page_cache?.live ?? 0) >= 4);
+  assert.ok(provider.extractCalls >= 4);
+  assert.ok(live!.sources.every((s) => s.source === "live"));
+
+  const providerForce = new MockProvider({ pages: defaultMockPages(OFF_GOLDEN) });
+  const forced = await runLiveBriefPipeline(
+    { query: OFF_GOLDEN, depth: "standard" },
+    { provider: providerForce, pageCache: cache, forceLive: true },
+  );
+  assert.ok(forced);
+  const bodyF = forced!.body as { page_cache?: { bypassed?: boolean } };
+  assert.equal(bodyF.page_cache?.bypassed, true);
+  assert.ok(providerForce.extractCalls >= 4);
+});
+
+await test("P4: contentHash stable for identical body", () => {
+  const a = contentHash("hello world");
+  const b = contentHash("hello world");
+  const c = contentHash("hello world!");
+  assert.equal(a, b);
+  assert.notEqual(a, c);
+  assert.equal(a.length, 64);
+  const cfg = loadPageCacheConfig({ PAGE_CACHE_TTL_MS: "120000" });
+  assert.equal(cfg.ttlMs, 120000);
+  assert.equal(cfg.bypass, false);
+  assert.equal(loadPageCacheConfig({ PAGE_CACHE_BYPASS: "1" }).bypass, true);
+});
+
+await test("P3b: Tasks stub stays disabled; host support unconfirmed", () => {
+  assert.equal(MCP_TASKS_HOST_SUPPORT, "unconfirmed");
+  assert.equal(mcpTasksPathEnabled({ ENABLE_MCP_TASKS: "1" }, true), false);
+  assert.equal(mcpTasksPathEnabled({}, false), false);
+  const stub = researchBriefTaskStub();
+  assert.equal(stub.status, "unsupported");
+  assert.ok(/unconfirmed|sync path/i.test(stub.reason));
 });
 
 process.stdout.write(`\npipeline tests: ${passed} passed, ${failed} failed\n`);

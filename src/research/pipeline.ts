@@ -20,6 +20,12 @@ import {
 } from "./cogs.js";
 import type { ExtractedPage, ResearchProvider } from "./providers/types.js";
 import {
+  extractWithCache,
+  getDefaultPageCache,
+  shouldBypassCache,
+  type PageBodyCache,
+} from "./page-cache.js";
+import {
   isAbortError,
   PipelineCancelledError,
   throwIfAborted,
@@ -40,6 +46,10 @@ export interface LiveBriefOpts {
   signal?: AbortSignal;
   /** Phase-only progress; never pre-verify primary counts (P3a). */
   onProgress?: ProgressReporter;
+  /** Page-body cache (P4). null disables; undefined uses process default. */
+  pageCache?: PageBodyCache | null;
+  /** Force live extracts (bypass cache). Also implied by as_of_hint. */
+  forceLive?: boolean;
 }
 
 function isHttpUrl(u: string): boolean {
@@ -199,11 +209,25 @@ export async function runLiveBriefPipeline(
 
     const toFetch = candidates.slice(0, plan.pages);
     const pages: ExtractedPage[] = [];
+    const bypassCache = shouldBypassCache({
+      asOfHint: as_of_hint,
+      forceLive: opts.forceLive,
+    });
+    const pageCache =
+      opts.pageCache === undefined ? getDefaultPageCache() : opts.pageCache;
+    let cacheHits = 0;
+    let liveFetches = 0;
     for (const url of toFetch) {
       throwIfAborted(signal, "extracting");
       try {
-        const page = await provider.fetchExtract(url, { signal });
+        const page = await extractWithCache(
+          url,
+          (u) => provider.fetchExtract(u, { signal }),
+          { cache: pageCache, bypass: bypassCache },
+        );
         if (page?.text && page.text.trim().length > 0) {
+          if (page.fetch_source === "cached") cacheHits += 1;
+          else liveFetches += 1;
           pages.push({ ...page, url: page.url || url });
         }
       } catch (err) {
@@ -293,6 +317,14 @@ export async function runLiveBriefPipeline(
                 cap_cents: plan.capCents,
                 extracted: pages.length,
                 provider: provider.id,
+                cache_hits: cacheHits,
+                live_fetches: liveFetches,
+                cache_bypassed: bypassCache,
+              },
+              page_cache: {
+                bypassed: bypassCache,
+                hits: cacheHits,
+                live: liveFetches,
               },
             }
           : {

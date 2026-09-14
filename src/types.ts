@@ -33,6 +33,11 @@ export interface Source {
   accessed: string;
   type: SourceType;
   supports: string;
+  /**
+   * Honest fetch provenance for the page body behind this source (P4).
+   * Always set on live-pipeline sources: cached | live.
+   */
+  source?: "cached" | "live";
 }
 
 export interface ResearchEnvelope {

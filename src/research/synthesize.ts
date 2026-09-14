@@ -113,6 +113,7 @@ export function pagesToSources(pages: ExtractedPage[]): Source[] {
       supports: date
         ? `Fetched page (${date}): ${snippet}`
         : `Fetched page: ${snippet}`,
+      source: page.fetch_source === "cached" ? "cached" : "live",
     });
   }
   return sources;
@@ -238,6 +239,7 @@ export function synthesizeBrief(input: SynthesizeInput): SynthesizeOutput {
       publisher: p.publisher || hostname(p.url),
       date: p.date ?? extractPageDate(p.text),
       excerpt: excerpt(p.text, 180),
+      source: p.fetch_source === "cached" ? "cached" : "live",
     })),
   };
 
